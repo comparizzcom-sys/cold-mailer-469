@@ -92,44 +92,6 @@ export function HomeShell() {
   const [isScheduling, startScheduling] = useTransition();
   const [isSending, startSending] = useTransition();
 
-  if (isLoading) {
-    return (
-      <main className={styles.page}>
-        <div className={styles.shell}>
-          <section className={styles.card}>
-            <div className={styles.cardHeader}>
-              <div>
-                <h2>Loading workspace</h2>
-                <p>Waiting for your Clerk session to be validated with Convex.</p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <main className={styles.page}>
-        <div className={styles.shell}>
-          <section className={styles.card}>
-            <div className={styles.cardHeader}>
-              <div>
-                <h2>Convex authentication not ready</h2>
-                <p>
-                  You are signed into Clerk, but Convex has not accepted the session
-                  token yet. Check the Clerk Convex integration, JWT issuer domain,
-                  and the `convex` JWT template in Clerk.
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-    );
-  }
-
   useEffect(() => {
     if (profile && !profileHydrated) {
       const clerkFullName = [user?.firstName, user?.lastName]
@@ -181,6 +143,44 @@ export function HomeShell() {
   const statScheduled = scheduled.length;
   const statSent = recent.filter((item) => item.status === "sent").length;
   const statFailed = recent.filter((item) => item.status === "failed").length;
+
+  if (isLoading) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2>Loading workspace</h2>
+                <p>Waiting for your Clerk session to be validated with Convex.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2>Convex authentication not ready</h2>
+                <p>
+                  You are signed into Clerk, but Convex has not accepted the session
+                  token yet. Check the Clerk Convex integration, JWT issuer domain,
+                  and the `convex` JWT template in Clerk.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   async function handleSaveProfile() {
     startSavingProfile(async () => {

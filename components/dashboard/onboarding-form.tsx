@@ -25,6 +25,33 @@ export function OnboardingForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
 
+  useEffect(() => {
+    if (!profile || hydrated) return;
+
+    const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
+    setDraft({
+      fullName: clerkName || profile.fullName || defaultProfile.fullName,
+      degree: profile.degree ?? defaultProfile.degree,
+      school: profile.school ?? defaultProfile.school,
+      location: profile.location ?? defaultProfile.location,
+      phone: profile.phone ?? defaultProfile.phone,
+      defaultSubject: profile.defaultSubject ?? defaultProfile.defaultSubject,
+      introduction: profile.introduction ?? defaultProfile.introduction,
+      closingText: profile.closingText ?? defaultProfile.closingText,
+      researchFields: normalizeResearchFields(profile.researchFields),
+      honors: profile.honors ?? defaultProfile.honors,
+      publicationBlurb: profile.publicationBlurb ?? defaultProfile.publicationBlurb,
+      goodEmailExamples: profile.goodEmailExamples ?? defaultProfile.goodEmailExamples,
+    });
+    setHydrated(true);
+  }, [hydrated, profile, user?.firstName, user?.lastName]);
+
+  useEffect(() => {
+    if (profile && hydrated && isProfileOnboarded(profile)) {
+      router.replace("/");
+    }
+  }, [hydrated, profile, router]);
+
   if (isLoading) {
     return (
       <main className={styles.page}>
@@ -53,33 +80,6 @@ export function OnboardingForm() {
       </main>
     );
   }
-
-  useEffect(() => {
-    if (!profile || hydrated) return;
-
-    const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
-    setDraft({
-      fullName: clerkName || profile.fullName || defaultProfile.fullName,
-      degree: profile.degree ?? defaultProfile.degree,
-      school: profile.school ?? defaultProfile.school,
-      location: profile.location ?? defaultProfile.location,
-      phone: profile.phone ?? defaultProfile.phone,
-      defaultSubject: profile.defaultSubject ?? defaultProfile.defaultSubject,
-      introduction: profile.introduction ?? defaultProfile.introduction,
-      closingText: profile.closingText ?? defaultProfile.closingText,
-      researchFields: normalizeResearchFields(profile.researchFields),
-      honors: profile.honors ?? defaultProfile.honors,
-      publicationBlurb: profile.publicationBlurb ?? defaultProfile.publicationBlurb,
-      goodEmailExamples: profile.goodEmailExamples ?? defaultProfile.goodEmailExamples,
-    });
-    setHydrated(true);
-  }, [hydrated, profile, user?.firstName, user?.lastName]);
-
-  useEffect(() => {
-    if (profile && hydrated && isProfileOnboarded(profile)) {
-      router.replace("/");
-    }
-  }, [hydrated, profile, router]);
 
   function handleSubmit() {
     startSaving(async () => {
