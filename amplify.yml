@@ -4,12 +4,9 @@ frontend:
     preBuild:
       commands:
         - npm ci
-        - env | grep -e NEXT_PUBLIC_ >> .env.production
-        - env | grep -e CLERK_SECRET_KEY -e CLERK_JWT_ISSUER_DOMAIN -e CLERK_AUTHORIZED_PARTIES >> .env.production
-        - env | grep -e GOOGLE_CLIENT_ID -e GOOGLE_REDIRECT_URI >> .env.production
     build:
       commands:
-        - npm run build
+        - npx convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'npm run build'
   artifacts:
     baseDirectory: .next
     files:
