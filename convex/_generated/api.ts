@@ -1,2 +1,4 @@
-export const api = {} as any;
-export const internal = {} as any;
+import { anyApi } from "convex/server";
+
+export const api = anyApi;
+export const internal = anyApi;
