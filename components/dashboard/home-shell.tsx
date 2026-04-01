@@ -9,8 +9,10 @@ import {
 } from "@clerk/nextjs";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { startTransition, useEffect, useState, useTransition } from "react";
+import { useUser } from "@clerk/nextjs";
 
 import { api } from "@/convex/_generated/api";
+import { plainTextToHtml } from "@/shared/html-email";
 import { defaultProfile } from "@/shared/default-profile";
 import { renderEmailDraft } from "@/shared/email-template";
 import type { FocusArea, ProfileDraft } from "@/shared/types";
@@ -45,21 +47,6 @@ function stringifyList(value: string[]) {
   return value.join("\n");
 }
 
-function plainTextToHtml(text: string) {
-  return text
-    .split("\n\n")
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map((paragraph) =>
-      `<p>${paragraph
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll("\n", "<br />")}</p>`,
-    )
-    .join("");
-}
-
 function formatDateTime(value?: number | null) {
   if (!value) return "Not available";
   return new Intl.DateTimeFormat(undefined, {
@@ -70,6 +57,7 @@ function formatDateTime(value?: number | null) {
 
 export function HomeShell() {
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
   const queryArgs = isSignedIn ? {} : "skip";
 
   const profile = useQuery(api.profiles.getForCurrentUser, queryArgs) as
@@ -112,8 +100,18 @@ export function HomeShell() {
 
   useEffect(() => {
     if (profile && !profileHydrated) {
+      const clerkFullName = [user?.firstName, user?.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const defaultName = defaultProfile.fullName;
+      const resolvedName =
+        profile.fullName && profile.fullName !== defaultName
+          ? profile.fullName
+          : clerkFullName || profile.fullName || defaultName;
+
       setProfileDraft({
-        fullName: profile.fullName ?? defaultProfile.fullName,
+        fullName: resolvedName,
         degree: profile.degree ?? defaultProfile.degree,
         school: profile.school ?? defaultProfile.school,
         location: profile.location ?? defaultProfile.location,
@@ -134,7 +132,7 @@ export function HomeShell() {
       setDraftSubject(profile.defaultSubject ?? defaultProfile.defaultSubject);
       setProfileHydrated(true);
     }
-  }, [profile, profileHydrated]);
+  }, [profile, profileHydrated, user?.firstName, user?.lastName]);
 
   const timezoneOptions = getSupportedTimezones();
   const statScheduled = scheduled.length;

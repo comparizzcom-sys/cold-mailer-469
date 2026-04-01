@@ -1,20 +1,12 @@
 import { defaultProfile } from "./default-profile";
 import type { AttachmentSummary, DraftComposeInput, FocusArea, ProfileDraft } from "./types";
+import { plainTextToHtml } from "./html-email";
 
 const focusLabelMap: Record<FocusArea, string> = {
   cv: "Computer Vision",
   robotics: "Robotics",
   hybrid: "Robotics and Computer Vision",
 };
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function normalizeProfile(profile?: Partial<ProfileDraft>): ProfileDraft {
   return {
@@ -108,29 +100,7 @@ export function renderEmailDraft(input: DraftComposeInput) {
     .filter(Boolean)
     .join("\n");
 
-  const html = [
-    `<p>Dear Professor ${escapeHtml(professorName)},</p>`,
-    `<p>${escapeHtml(intro)}</p>`,
-    `<p>${escapeHtml(researchParagraph)}</p>`,
-    `<p><strong>Relevant background for ${escapeHtml(focusLabel)}:</strong></p>`,
-    `<ul>${highlights
-      .map((item) => `<li>${escapeHtml(item)}</li>`)
-      .join("")}</ul>`,
-    `<p>${escapeHtml(profile.publicationBlurb.trim())}</p>`,
-    `<ul>${profile.honors
-      .map((item) => `<li>${escapeHtml(item)}</li>`)
-      .join("")}</ul>`,
-    notesParagraph ? `<p>${escapeHtml(notesParagraph)}</p>` : "",
-    `<p>${escapeHtml(attachmentSentence)}</p>`,
-    `<p>${escapeHtml(profile.closingText.trim())}</p>`,
-    `<p><strong>${escapeHtml(profile.fullName)}</strong><br />${escapeHtml(
-      profile.degree,
-    )}<br />${escapeHtml(profile.school)}<br />${escapeHtml(
-      profile.location,
-    )}<br />Phone: ${escapeHtml(profile.phone)}</p>`,
-  ]
-    .filter(Boolean)
-    .join("");
+  const html = plainTextToHtml(plainText);
 
   return {
     subject,
