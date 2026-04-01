@@ -3,7 +3,7 @@ import { SignUp } from "@clerk/nextjs";
 export default function SignUpPage() {
   return (
     <main className="authPage">
-      <SignUp />
+      <SignUp fallbackRedirectUrl="/onboarding" />
     </main>
   );
 }

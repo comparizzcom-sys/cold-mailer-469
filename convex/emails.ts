@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import { v } from "convex/values";
 
 import { renderEmailDraft } from "../shared/email-template";
-import type { FocusArea } from "../shared/types";
+import { normalizeResearchFields } from "../shared/profile-utils";
 import { getAuthorizedGmailClient } from "./gmail";
 import { internal } from "./_generated/api";
 import {
@@ -33,7 +33,7 @@ function emailInputArgs() {
     professorEmail: v.string(),
     researchTitle: v.string(),
     researchAbstract: v.string(),
-    focusArea: v.union(v.literal("cv"), v.literal("robotics"), v.literal("hybrid")),
+    researchField: v.string(),
     notes: v.string(),
     generatedHook: v.string(),
     html: v.string(),
@@ -46,14 +46,18 @@ function buildPrompt(args: {
   professorName: string;
   researchTitle: string;
   researchAbstract: string;
-  focusArea: FocusArea;
+  researchField: string;
+  researchFieldHighlights: string[];
   notes: string;
   goodEmailExamples: string;
 }) {
   return [
     "Write one concise paragraph for a cold email to a professor.",
     `Start naturally and mention the paper "${args.researchTitle}".`,
-    `Focus area: ${args.focusArea}.`,
+    `Focus on the sender's research field: ${args.researchField}.`,
+    args.researchFieldHighlights.length > 0
+      ? `Relevant sender highlights: ${args.researchFieldHighlights.join(" | ")}`
+      : "",
     "Keep the tone respectful, specific, and serious about research.",
     "Do not include greeting or sign-off.",
     "Stay under 95 words.",
@@ -72,7 +76,8 @@ async function generateHookWithOpenAI(args: {
   professorName: string;
   researchTitle: string;
   researchAbstract: string;
-  focusArea: FocusArea;
+  researchField: string;
+  researchFieldHighlights: string[];
   notes: string;
   goodEmailExamples: string;
 }) {
@@ -184,7 +189,7 @@ export const generateDraft = action({
     professorEmail: v.string(),
     researchTitle: v.string(),
     researchAbstract: v.string(),
-    focusArea: v.union(v.literal("cv"), v.literal("robotics"), v.literal("hybrid")),
+    researchField: v.string(),
     notes: v.string(),
   },
   handler: async (ctx, args) => {
@@ -195,12 +200,20 @@ export const generateDraft = action({
     const attachments = await ctx.runQuery(internal.attachments.listByUserIdInternal, {
       userId: identity.subject,
     });
+    const researchFields = normalizeResearchFields(profile.researchFields);
+    const selectedField =
+      researchFields.find(
+        (field) =>
+          field.name.trim().toLowerCase() ===
+          args.researchField.trim().toLowerCase(),
+      ) ?? researchFields[0];
 
     const generatedHook = await generateHookWithOpenAI({
       professorName: args.professorName,
       researchTitle: args.researchTitle,
       researchAbstract: args.researchAbstract,
-      focusArea: args.focusArea,
+      researchField: selectedField?.name ?? args.researchField,
+      researchFieldHighlights: selectedField?.highlights ?? [],
       notes: args.notes,
       goodEmailExamples: profile.goodEmailExamples ?? "",
     });
@@ -252,7 +265,7 @@ export const schedule = mutation({
       professorEmail: args.professorEmail,
       researchTitle: args.researchTitle,
       researchAbstract: args.researchAbstract,
-      focusArea: args.focusArea,
+      researchField: args.researchField,
       notes: args.notes,
       generatedHook: args.generatedHook,
       subject: args.subject,

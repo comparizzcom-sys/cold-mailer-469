@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
 import { defaultProfile } from "../shared/default-profile";
+import { normalizeResearchFields } from "../shared/profile-utils";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 
 async function requireIdentity(ctx: any) {
@@ -21,9 +22,13 @@ function profileArgs() {
     defaultSubject: v.string(),
     introduction: v.string(),
     closingText: v.string(),
-    cvHighlights: v.array(v.string()),
-    roboticsHighlights: v.array(v.string()),
-    hybridHighlights: v.array(v.string()),
+    researchFields: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        highlights: v.array(v.string()),
+      }),
+    ),
     honors: v.array(v.string()),
     publicationBlurb: v.string(),
     goodEmailExamples: v.string(),
@@ -62,6 +67,7 @@ export const upsert = mutation({
     const payload = {
       userId: identity.subject,
       ...args,
+      researchFields: normalizeResearchFields(args.researchFields),
       updatedAt: Date.now(),
     };
 
@@ -101,6 +107,7 @@ export const upsertByUserIdInternal = internalMutation({
 
     const payload = {
       ...args,
+      researchFields: normalizeResearchFields(args.researchFields),
       updatedAt: Date.now(),
     };
 

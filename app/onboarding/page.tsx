@@ -1,15 +1,13 @@
-export const dynamic = "force-dynamic";
-
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-import { HomeShell } from "@/components/dashboard/home-shell";
+import { OnboardingForm } from "@/components/dashboard/onboarding-form";
 
-export default async function HomePage() {
+export default async function OnboardingPage() {
   const session = await auth();
   if (!session.userId) {
     redirect("/sign-up");
   }
 
-  return <HomeShell />;
+  return <OnboardingForm />;
 }

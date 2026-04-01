@@ -1,34 +1,23 @@
 import { defaultProfile } from "./default-profile";
-import type { AttachmentSummary, DraftComposeInput, FocusArea, ProfileDraft } from "./types";
+import { normalizeResearchFields } from "./profile-utils";
+import type { AttachmentSummary, DraftComposeInput, ProfileDraft } from "./types";
 import { plainTextToHtml } from "./html-email";
-
-const focusLabelMap: Record<FocusArea, string> = {
-  cv: "Computer Vision",
-  robotics: "Robotics",
-  hybrid: "Robotics and Computer Vision",
-};
 
 function normalizeProfile(profile?: Partial<ProfileDraft>): ProfileDraft {
   return {
     ...defaultProfile,
     ...profile,
-    cvHighlights: profile?.cvHighlights ?? defaultProfile.cvHighlights,
-    roboticsHighlights:
-      profile?.roboticsHighlights ?? defaultProfile.roboticsHighlights,
-    hybridHighlights: profile?.hybridHighlights ?? defaultProfile.hybridHighlights,
+    researchFields: normalizeResearchFields(profile?.researchFields),
     honors: profile?.honors ?? defaultProfile.honors,
   };
 }
 
-function getHighlights(profile: ProfileDraft, focusArea: FocusArea) {
-  switch (focusArea) {
-    case "cv":
-      return profile.cvHighlights;
-    case "robotics":
-      return profile.roboticsHighlights;
-    case "hybrid":
-      return profile.hybridHighlights;
-  }
+function getSelectedResearchField(profile: ProfileDraft, fieldName: string) {
+  return (
+    profile.researchFields.find(
+      (field) => field.name.trim().toLowerCase() === fieldName.trim().toLowerCase(),
+    ) ?? profile.researchFields[0]
+  );
 }
 
 function formatAttachmentSentence(attachments: AttachmentSummary[]) {
@@ -55,8 +44,12 @@ function formatAttachmentSentence(attachments: AttachmentSummary[]) {
 
 export function renderEmailDraft(input: DraftComposeInput) {
   const profile = normalizeProfile(input.profile);
-  const highlights = getHighlights(profile, input.focusArea);
-  const focusLabel = focusLabelMap[input.focusArea];
+  const selectedField = getSelectedResearchField(profile, input.researchField);
+  const fieldLabel =
+    selectedField?.name.trim() ||
+    input.researchField.trim() ||
+    "your lab's research area";
+  const highlights = selectedField?.highlights ?? [];
   const professorName = input.professorName.trim() || "Professor";
   const hook = input.generatedHook.trim();
   const notes = input.notes.trim();
@@ -72,7 +65,7 @@ export function renderEmailDraft(input: DraftComposeInput) {
 
   const researchParagraph = hook
     ? hook
-    : `I was particularly interested in your work on "${input.researchTitle.trim()}" and the way it intersects with ${focusLabel}.`;
+    : `I was particularly interested in your work on "${input.researchTitle.trim()}" and the way it intersects with ${fieldLabel}.`;
 
   const notesParagraph = notes
     ? `A few extra points that may be relevant: ${notes}`
@@ -83,7 +76,7 @@ export function renderEmailDraft(input: DraftComposeInput) {
     "",
     intro,
     researchParagraph,
-    `My strongest relevant experience for ${focusLabel} includes:`,
+    `My strongest relevant experience for ${fieldLabel} includes:`,
     ...highlights.map((item) => `- ${item}`),
     profile.publicationBlurb.trim(),
     ...profile.honors.map((item) => `- ${item}`),

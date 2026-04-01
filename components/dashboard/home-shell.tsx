@@ -2,20 +2,25 @@
 
 import Link from "next/link";
 import {
-  SignInButton,
-  SignUpButton,
   useAuth,
   UserButton,
+  useUser,
 } from "@clerk/nextjs";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useState, useTransition } from "react";
-import { useUser } from "@clerk/nextjs";
 
 import { api } from "@/convex/_generated/api";
+import { ResearchFieldsEditor } from "@/components/dashboard/research-fields-editor";
 import { plainTextToHtml } from "@/shared/html-email";
 import { defaultProfile } from "@/shared/default-profile";
 import { renderEmailDraft } from "@/shared/email-template";
-import type { FocusArea, ProfileDraft } from "@/shared/types";
+import {
+  isProfileOnboarded,
+  makeResearchField,
+  normalizeResearchFields,
+} from "@/shared/profile-utils";
+import type { ProfileDraft } from "@/shared/types";
 import { getSupportedTimezones } from "@/src/lib/timezones";
 import styles from "./home-shell.module.css";
 
@@ -32,20 +37,9 @@ const defaultCompose = {
   professorEmail: "",
   researchTitle: "",
   researchAbstract: "",
-  focusArea: "hybrid" as FocusArea,
+  researchField: defaultProfile.researchFields[0]?.name ?? "",
   notes: "",
 };
-
-function parseList(value: string) {
-  return value
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function stringifyList(value: string[]) {
-  return value.join("\n");
-}
 
 function formatDateTime(value?: number | null) {
   if (!value) return "Not available";
@@ -56,6 +50,7 @@ function formatDateTime(value?: number | null) {
 }
 
 export function HomeShell() {
+  const router = useRouter();
   const { isSignedIn } = useAuth();
   const { user } = useUser();
   const queryArgs = isSignedIn ? {} : "skip";
@@ -109,6 +104,7 @@ export function HomeShell() {
         profile.fullName && profile.fullName !== defaultName
           ? profile.fullName
           : clerkFullName || profile.fullName || defaultName;
+      const researchFields = normalizeResearchFields(profile.researchFields);
 
       setProfileDraft({
         fullName: resolvedName,
@@ -119,22 +115,32 @@ export function HomeShell() {
         defaultSubject: profile.defaultSubject ?? defaultProfile.defaultSubject,
         introduction: profile.introduction ?? defaultProfile.introduction,
         closingText: profile.closingText ?? defaultProfile.closingText,
-        cvHighlights: profile.cvHighlights ?? defaultProfile.cvHighlights,
-        roboticsHighlights:
-          profile.roboticsHighlights ?? defaultProfile.roboticsHighlights,
-        hybridHighlights: profile.hybridHighlights ?? defaultProfile.hybridHighlights,
+        researchFields,
         honors: profile.honors ?? defaultProfile.honors,
         publicationBlurb:
           profile.publicationBlurb ?? defaultProfile.publicationBlurb,
         goodEmailExamples:
           profile.goodEmailExamples ?? defaultProfile.goodEmailExamples,
       });
+      setCompose((current) => ({
+        ...current,
+        researchField: researchFields[0]?.name ?? current.researchField,
+      }));
       setDraftSubject(profile.defaultSubject ?? defaultProfile.defaultSubject);
       setProfileHydrated(true);
     }
   }, [profile, profileHydrated, user?.firstName, user?.lastName]);
 
+  useEffect(() => {
+    if (profileHydrated && profile && !isProfileOnboarded(profile)) {
+      router.replace("/onboarding");
+    }
+  }, [profile, profileHydrated, router]);
+
   const timezoneOptions = getSupportedTimezones();
+  const researchFieldOptions = normalizeResearchFields(profileDraft.researchFields).filter(
+    (field) => field.name.trim(),
+  );
   const statScheduled = scheduled.length;
   const statSent = recent.filter((item) => item.status === "sent").length;
   const statFailed = recent.filter((item) => item.status === "failed").length;
@@ -142,7 +148,10 @@ export function HomeShell() {
   async function handleSaveProfile() {
     startSavingProfile(async () => {
       try {
-        await saveProfile(profileDraft);
+        await saveProfile({
+          ...profileDraft,
+          researchFields: researchFieldOptions,
+        });
         setMessage({ type: "success", text: "Profile saved to Convex." });
       } catch (error) {
         setMessage({
@@ -191,6 +200,14 @@ export function HomeShell() {
   }
 
   async function handleGenerateDraft() {
+    if (!compose.researchField) {
+      setMessage({
+        type: "error",
+        text: "Add at least one research field before generating a draft.",
+      });
+      return;
+    }
+
     startGenerating(async () => {
       try {
         const result = await generateDraft(compose);
@@ -297,21 +314,10 @@ export function HomeShell() {
             <span className={styles.eyebrow}>Convex + Gmail + OpenAI</span>
             <h1 className={styles.title}>Cold Mailer 469</h1>
             <p className={styles.lead}>
-              A cleaner multi-user rebuild of your professor outreach workflow.
-              Connect Gmail, save your research profile once, generate a
-              personalized draft, edit it, and send or schedule with
-              Convex-backed jobs.
+              Each signed-in user manages their own research fields, mailbox, and
+              profile context. Drafts stay editable, and the final email HTML is
+              rendered consistently before sending or scheduling.
             </p>
-            {!isSignedIn ? (
-              <div className={styles.heroActions}>
-                <SignInButton mode="modal">
-                  <button className={styles.button}>Sign in</button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <button className={styles.buttonGhost}>Create account</button>
-                </SignUpButton>
-              </div>
-            ) : null}
           </div>
 
           <div className={styles.heroPanel}>
@@ -327,55 +333,15 @@ export function HomeShell() {
               <span>Failed</span>
               <strong>{statFailed}</strong>
             </div>
-            {isSignedIn ? (
-              <div>
-                <span>Session</span>
-                <strong>
-                  <UserButton afterSignOutUrl="/" />
-                </strong>
-              </div>
-            ) : null}
+            <div>
+              <span>Session</span>
+              <strong>
+                <UserButton afterSignOutUrl="/sign-up" />
+              </strong>
+            </div>
           </div>
         </section>
 
-        {!isSignedIn ? (
-          <section className={styles.card}>
-            <div className={styles.cardHeader}>
-              <div>
-                <h2>How this rebuild works</h2>
-                <p>
-                  Sign in to configure your profile, connect Gmail, upload files,
-                  and start composing.
-                </p>
-              </div>
-            </div>
-            <div className={styles.list}>
-              <div className={styles.listItem}>
-                <strong>1. Save your profile</strong>
-                <span className={styles.muted}>
-                  Move your hardcoded intro, highlights, and closing copy into
-                  editable settings.
-                </span>
-              </div>
-              <div className={styles.listItem}>
-                <strong>2. Connect Gmail</strong>
-                <span className={styles.muted}>
-                  Your refresh token stays encrypted server-side in Convex-backed
-                  storage.
-                </span>
-              </div>
-              <div className={styles.listItem}>
-                <strong>3. Generate and send</strong>
-                <span className={styles.muted}>
-                  OpenAI writes only the personalized research hook. The rest of
-                  the message stays deterministic and editable.
-                </span>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {isSignedIn ? (
           <div className={styles.grid}>
             <div className={styles.column}>
               {message ? (
@@ -457,20 +423,22 @@ export function HomeShell() {
                     />
                   </div>
                   <div className={styles.field}>
-                    <label>Focus area</label>
+                    <label>Research field</label>
                     <select
                       className={styles.select}
-                      value={compose.focusArea}
+                      value={compose.researchField}
                       onChange={(event) =>
                         setCompose((current) => ({
                           ...current,
-                          focusArea: event.target.value as FocusArea,
+                          researchField: event.target.value,
                         }))
                       }
                     >
-                      <option value="cv">Computer Vision</option>
-                      <option value="robotics">Robotics</option>
-                      <option value="hybrid">Hybrid</option>
+                      {researchFieldOptions.map((field) => (
+                        <option key={field.id} value={field.name}>
+                          {field.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className={styles.field}>
@@ -488,7 +456,7 @@ export function HomeShell() {
                     </select>
                   </div>
                   <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Additional notes</label>
+                    <label>Additional comments</label>
                     <textarea
                       className={styles.textarea}
                       value={compose.notes}
@@ -743,62 +711,60 @@ export function HomeShell() {
               <section className={styles.card}>
                 <div className={styles.cardHeader}>
                   <div>
-                    <h3>Highlights and style</h3>
+                    <h3>Research fields</h3>
                     <p>
-                      These lists are used by the deterministic email template
-                      and the hook generator.
+                      Manage the exact research-field options available in the
+                      compose dropdown for this user.
+                    </p>
+                  </div>
+                </div>
+                <ResearchFieldsEditor
+                  fields={
+                    profileDraft.researchFields.length > 0
+                      ? profileDraft.researchFields
+                      : [makeResearchField("")]
+                  }
+                  onChange={(researchFields) => {
+                    setProfileDraft((current) => ({ ...current, researchFields }));
+                    const firstNamedField = researchFields.find((field) => field.name.trim());
+                    if (firstNamedField) {
+                      setCompose((current) => ({
+                        ...current,
+                        researchField:
+                          current.researchField && researchFields.some(
+                            (field) => field.name === current.researchField,
+                          )
+                            ? current.researchField
+                            : firstNamedField.name,
+                      }));
+                    }
+                  }}
+                />
+              </section>
+
+              <section className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <h3>Additional profile context</h3>
+                    <p>
+                      These shape the prompt, signature, and final deterministic
+                      email body.
                     </p>
                   </div>
                 </div>
                 <div className={styles.formGrid}>
                   <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Computer vision highlights (one per line)</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={stringifyList(profileDraft.cvHighlights)}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          cvHighlights: parseList(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Robotics highlights (one per line)</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={stringifyList(profileDraft.roboticsHighlights)}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          roboticsHighlights: parseList(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Hybrid highlights (one per line)</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={stringifyList(profileDraft.hybridHighlights)}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          hybridHighlights: parseList(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
                     <label>Honors and publication blurbs (one per line)</label>
                     <textarea
                       className={styles.textarea}
-                      value={stringifyList(profileDraft.honors)}
+                      value={profileDraft.honors.join("\n")}
                       onChange={(event) =>
                         setProfileDraft((current) => ({
                           ...current,
-                          honors: parseList(event.target.value),
+                          honors: event.target.value
+                            .split("\n")
+                            .map((item) => item.trim())
+                            .filter(Boolean),
                         }))
                       }
                     />
@@ -982,7 +948,6 @@ export function HomeShell() {
               </section>
             </div>
           </div>
-        ) : null}
       </div>
     </main>
   );
