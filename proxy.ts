@@ -1,6 +1,19 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export default clerkMiddleware();
+const authorizedParties = (
+  process.env.CLERK_AUTHORIZED_PARTIES ?? ""
+)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+export default clerkMiddleware(
+  authorizedParties.length > 0
+    ? {
+        authorizedParties,
+      }
+    : undefined,
+);
 
 export const config = {
   matcher: [

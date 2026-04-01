@@ -19,6 +19,7 @@ Copy `.env.example` to `.env.local` and fill in:
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 - `CLERK_JWT_ISSUER_DOMAIN`
+- `CLERK_AUTHORIZED_PARTIES`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REDIRECT_URI`
@@ -38,3 +39,28 @@ Copy `.env.example` to `.env.local` and fill in:
 - Gmail refresh tokens are encrypted before storage in Convex.
 - Per-user profile data and attachments replace the old hardcoded template data.
 - Scheduled emails are dispatched with `ctx.scheduler.runAt(...)`.
+
+## AWS Amplify
+
+This repo includes [amplify.yml](c:\Dev-Comparizz\cold-mailer-469\amplify.yml) for Next.js SSR on Amplify.
+
+Put these in Amplify environment variables:
+
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_CONVEX_URL`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `CLERK_JWT_ISSUER_DOMAIN`
+- `CLERK_AUTHORIZED_PARTIES`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_REDIRECT_URI`
+
+Put these in Convex production deployment environment variables:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `OPENAI_API_KEY`
+- `GMAIL_TOKEN_ENCRYPTION_KEY`
+
+`CONVEX_DEPLOY_KEY` is only needed where you run `npx convex deploy` from CI or locally.
