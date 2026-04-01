@@ -1,15 +1,12 @@
 export const dynamic = "force-dynamic";
 
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-
+import { AuthGate } from "@/components/auth/auth-gate";
 import { HomeShell } from "@/components/dashboard/home-shell";
 
-export default async function HomePage() {
-  const session = await auth();
-  if (!session.userId) {
-    redirect("/sign-up");
-  }
-
-  return <HomeShell />;
+export default function HomePage() {
+  return (
+    <AuthGate>
+      <HomeShell />
+    </AuthGate>
+  );
 }

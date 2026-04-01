@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
+import { ClerkProvider } from "@clerk/nextjs";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
+import { SiteHeader } from "@/components/auth/site-header";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -32,38 +27,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const publishableKey =
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
-    "pk_test_ZXhhbXBsZS5jb20k";
-  const session = await auth();
-  const isSignedIn = Boolean(session.userId);
-
   return (
       <html lang="en">
         <body className={`${display.variable} ${mono.variable}`}>
-          <ClerkProvider publishableKey={publishableKey}>
-            <header className="topbar">
-              <div className="topbarInner">
-                <div>
-                  <strong>Cold Mailer 469</strong>
-                </div>
-                <nav className="topbarNav">
-                  {!isSignedIn ? (
-                    <>
-                    <SignInButton mode="modal">
-                      <button className="topbarButton">Sign in</button>
-                    </SignInButton>
-                    <SignUpButton mode="modal">
-                      <button className="topbarButton ghost">Create account</button>
-                    </SignUpButton>
-                    </>
-                  ) : (
-                    <UserButton afterSignOutUrl="/" />
-                  )}
-                </nav>
-              </div>
-            </header>
-          <AppProviders>{children}</AppProviders>
+          <ClerkProvider>
+            <SiteHeader />
+            <AppProviders>{children}</AppProviders>
           </ClerkProvider>
         </body>
       </html>

@@ -1,13 +1,10 @@
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-
+import { AuthGate } from "@/components/auth/auth-gate";
 import { OnboardingForm } from "@/components/dashboard/onboarding-form";
 
-export default async function OnboardingPage() {
-  const session = await auth();
-  if (!session.userId) {
-    redirect("/sign-up");
-  }
-
-  return <OnboardingForm />;
+export default function OnboardingPage() {
+  return (
+    <AuthGate>
+      <OnboardingForm />
+    </AuthGate>
+  );
 }
