@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -15,7 +15,8 @@ import styles from "./onboarding.module.css";
 export function OnboardingForm() {
   const router = useRouter();
   const { user } = useUser();
-  const profile = useQuery(api.profiles.getForCurrentUser, {}) as
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const profile = useQuery(api.profiles.getForCurrentUser, isAuthenticated ? {} : "skip") as
     | (ProfileDraft & { userId?: string })
     | undefined;
   const saveProfile = useMutation(api.profiles.upsert);
@@ -23,6 +24,35 @@ export function OnboardingForm() {
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
+
+  if (isLoading) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.panel}>
+          <div className={styles.header}>
+            <h1>Loading onboarding</h1>
+            <p>Waiting for your Convex session to be ready.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.panel}>
+          <div className={styles.header}>
+            <h1>Convex authentication not ready</h1>
+            <p>
+              Clerk sign-in succeeded, but Convex does not yet recognize the
+              session. Check your Clerk Convex integration and JWT issuer setup.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   useEffect(() => {
     if (!profile || hydrated) return;

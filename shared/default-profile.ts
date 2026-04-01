@@ -1,6 +1,6 @@
 import type { ProfileDraft } from "./types";
 
-export const defaultProfile: ProfileDraft = {
+export const legacySeedProfile: ProfileDraft = {
   fullName: "Narendhiran V",
   degree:
     "B.Tech student in Mechanical Engineering with a minor in Computer Science",
@@ -48,5 +48,20 @@ export const defaultProfile: ProfileDraft = {
   ],
   publicationBlurb:
     "My recent work spans robot navigation, embodied AI, human-computer interaction, and applied deep learning, with projects moving toward conference and journal submission.",
+  goodEmailExamples: "",
+};
+
+export const defaultProfile: ProfileDraft = {
+  fullName: "",
+  degree: "",
+  school: "",
+  location: "",
+  phone: "",
+  defaultSubject: "",
+  introduction: "",
+  closingText: "",
+  researchFields: [],
+  honors: [],
+  publicationBlurb: "",
   goodEmailExamples: "",
 };

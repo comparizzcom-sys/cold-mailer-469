@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import { v } from "convex/values";
 
 import { renderEmailDraft } from "../shared/email-template";
-import { normalizeResearchFields } from "../shared/profile-utils";
+import { normalizeResearchFields, sanitizeProfileDraft } from "../shared/profile-utils";
 import { getAuthorizedGmailClient } from "./gmailActions";
 import { internal } from "./_generated/api";
 import { action, internalAction } from "./_generated/server";
@@ -194,9 +194,10 @@ export const generateDraft = action({
   },
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
-    const profile = await ctx.runQuery(internal.profiles.getByUserIdInternal, {
+    const rawProfile = await ctx.runQuery(internal.profiles.getByUserIdInternal, {
       userId: identity.subject,
     });
+    const profile = sanitizeProfileDraft(rawProfile);
     const attachments = await ctx.runQuery(internal.attachments.listByUserIdInternal, {
       userId: identity.subject,
     });

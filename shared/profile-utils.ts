@@ -1,4 +1,4 @@
-import { defaultProfile } from "./default-profile";
+import { defaultProfile, legacySeedProfile } from "./default-profile";
 import type { ProfileDraft, ResearchFieldDraft } from "./types";
 
 export function slugifyResearchField(value: string) {
@@ -27,6 +27,37 @@ export function normalizeResearchFields(
     name: field.name,
     highlights: field.highlights ?? [],
   }));
+}
+
+export function isLegacySeededProfile(profile?: Partial<ProfileDraft> | null) {
+  if (!profile) return false;
+
+  return (
+    profile.fullName === legacySeedProfile.fullName &&
+    profile.degree === legacySeedProfile.degree &&
+    profile.school === legacySeedProfile.school &&
+    profile.location === legacySeedProfile.location &&
+    profile.phone === legacySeedProfile.phone &&
+    profile.defaultSubject === legacySeedProfile.defaultSubject &&
+    profile.introduction === legacySeedProfile.introduction &&
+    profile.closingText === legacySeedProfile.closingText &&
+    profile.publicationBlurb === legacySeedProfile.publicationBlurb &&
+    profile.goodEmailExamples === legacySeedProfile.goodEmailExamples
+  );
+}
+
+export function sanitizeProfileDraft<T extends Partial<ProfileDraft>>(
+  profile?: T | null,
+): T | ProfileDraft {
+  if (!profile || isLegacySeededProfile(profile)) {
+    return {
+      ...defaultProfile,
+      ...(profile && "userId" in profile ? { userId: (profile as any).userId } : {}),
+      ...(profile && "updatedAt" in profile ? { updatedAt: (profile as any).updatedAt } : {}),
+    } as T | ProfileDraft;
+  }
+
+  return profile;
 }
 
 export function isProfileOnboarded(profile?: Partial<ProfileDraft> | null) {

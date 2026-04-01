@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import {
-  useAuth,
   UserButton,
   useUser,
 } from "@clerk/nextjs";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useState, useTransition } from "react";
 
@@ -51,9 +50,9 @@ function formatDateTime(value?: number | null) {
 
 export function HomeShell() {
   const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const { user } = useUser();
-  const queryArgs = isSignedIn ? {} : "skip";
+  const queryArgs = isAuthenticated ? {} : "skip";
 
   const profile = useQuery(api.profiles.getForCurrentUser, queryArgs) as
     | (ProfileDraft & { userId?: string })
@@ -92,6 +91,44 @@ export function HomeShell() {
   const [isGenerating, startGenerating] = useTransition();
   const [isScheduling, startScheduling] = useTransition();
   const [isSending, startSending] = useTransition();
+
+  if (isLoading) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2>Loading workspace</h2>
+                <p>Waiting for your Clerk session to be validated with Convex.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2>Convex authentication not ready</h2>
+                <p>
+                  You are signed into Clerk, but Convex has not accepted the session
+                  token yet. Check the Clerk Convex integration, JWT issuer domain,
+                  and the `convex` JWT template in Clerk.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   useEffect(() => {
     if (profile && !profileHydrated) {

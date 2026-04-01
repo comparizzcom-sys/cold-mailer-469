@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { defaultProfile } from "../shared/default-profile";
-import { normalizeResearchFields } from "../shared/profile-utils";
+import { normalizeResearchFields, sanitizeProfileDraft } from "../shared/profile-utils";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 
 async function requireIdentity(ctx: any) {
@@ -51,7 +51,7 @@ export const getForCurrentUser = query({
       };
     }
 
-    return existing;
+    return sanitizeProfileDraft(existing);
   },
 });
 
@@ -90,7 +90,11 @@ export const getByUserIdInternal = internalQuery({
       .withIndex("by_userId", (query: any) => query.eq("userId", args.userId))
       .unique();
 
-    return existing ?? { ...defaultProfile, userId: args.userId };
+    if (!existing) {
+      return { ...defaultProfile, userId: args.userId };
+    }
+
+    return sanitizeProfileDraft(existing);
   },
 });
 
