@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     await requireUser();
     const token = await getConvexToken();
     await fetchAction(
-      api.gmail.connectComplete,
+      api.gmailActions.connectComplete,
       { code },
       { token },
     );

@@ -67,8 +67,8 @@ export function HomeShell() {
   const generateUploadUrl = useMutation(api.attachments.generateUploadUrl);
   const saveAttachment = useMutation(api.attachments.saveMetadata);
   const disconnectGmail = useMutation(api.gmail.disconnect);
-  const generateDraft = useAction(api.emails.generateDraft);
-  const sendNow = useAction(api.emails.sendNow);
+  const generateDraft = useAction(api.emailsActions.generateDraft);
+  const sendNow = useAction(api.emailsActions.sendNow);
   const scheduleEmail = useMutation(api.emails.schedule);
 
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>(defaultProfile);
