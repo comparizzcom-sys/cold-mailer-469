@@ -35,6 +35,10 @@ function emailInputArgs() {
 }
 
 function buildPrompt(args: {
+  senderName: string;
+  senderDegree: string;
+  senderSchool: string;
+  senderIntroduction: string;
   professorName: string;
   researchTitle: string;
   researchAbstract: string;
@@ -45,6 +49,10 @@ function buildPrompt(args: {
 }) {
   return [
     "Write one concise paragraph for a cold email to a professor.",
+    `The sender is ${args.senderName}, ${args.senderDegree} at ${args.senderSchool}.`,
+    args.senderIntroduction
+      ? `Sender background/context: ${args.senderIntroduction}`
+      : "",
     `Start naturally and mention the paper "${args.researchTitle}".`,
     `Focus on the sender's research field: ${args.researchField}.`,
     args.researchFieldHighlights.length > 0
@@ -65,6 +73,10 @@ function buildPrompt(args: {
 }
 
 async function generateHookWithOpenAI(args: {
+  senderName: string;
+  senderDegree: string;
+  senderSchool: string;
+  senderIntroduction: string;
   professorName: string;
   researchTitle: string;
   researchAbstract: string;
@@ -197,6 +209,10 @@ export const generateDraft = action({
       ) ?? researchFields[0];
 
     const generatedHook = await generateHookWithOpenAI({
+      senderName: profile.fullName,
+      senderDegree: profile.degree,
+      senderSchool: profile.school,
+      senderIntroduction: profile.introduction,
       professorName: args.professorName,
       researchTitle: args.researchTitle,
       researchAbstract: args.researchAbstract,
