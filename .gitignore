@@ -1,0 +1,12 @@
+.next
+node_modules
+.env.local
+.env
+*.log
+coverage
+dist
+convex/.tmp
+reference-code/
+client_secret.json
+client_secret_*.json
+tsconfig.tsbuildinfo
