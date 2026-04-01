@@ -1,12 +1,12 @@
 "use node";
 
+import { createClerkClient } from "@clerk/backend";
 import { google } from "googleapis";
 import { v } from "convex/values";
 
-import { getGoogleOAuthConfig } from "../src/lib/gmail-oauth";
-import { decryptSecret, encryptSecret } from "./crypto";
-import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
+
+const REQUIRED_GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 
 async function requireIdentity(ctx: any) {
   const identity = await ctx.auth.getUserIdentity();
@@ -16,67 +16,100 @@ async function requireIdentity(ctx: any) {
   return identity;
 }
 
-function buildOAuthClient() {
-  const config = getGoogleOAuthConfig();
-  return new google.auth.OAuth2(
-    config.clientId,
-    config.clientSecret,
-    config.redirectUri,
-  );
+function getClerkClient() {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error("Missing CLERK_SECRET_KEY in Convex environment.");
+  }
+
+  return createClerkClient({ secretKey });
 }
 
-export const connectComplete = action({
-  args: {
-    code: v.string(),
-  },
-  handler: async (ctx, args) => {
+async function getGoogleAccessTokenForUser(userId: string) {
+  const clerk = getClerkClient();
+  let token:
+    | {
+        token?: string | null;
+        scopes?: string[];
+        expiresAt?: number | null;
+      }
+    | undefined;
+
+  const preferredResponse = await clerk.users.getUserOauthAccessToken(userId, "google");
+  token = preferredResponse.data.find((entry) => entry.token);
+
+  if (!token?.token) {
+    const legacyResponse = await clerk.users.getUserOauthAccessToken(
+      userId,
+      "oauth_google",
+    );
+    token = legacyResponse.data.find((entry) => entry.token);
+  }
+
+  if (!token?.token) {
+    throw new Error(
+      "No Google OAuth access token found in Clerk. Sign in with Google and grant the Gmail send scope.",
+    );
+  }
+
+  if (!token.scopes?.includes(REQUIRED_GMAIL_SCOPE)) {
+    throw new Error(
+      "Your Clerk Google sign-in is missing Gmail send permission. Sign out, sign back in with Google, and approve email sending.",
+    );
+  }
+
+  return token;
+}
+
+export const getStatus = action({
+  args: {},
+  handler: async (ctx) => {
     const identity = await requireIdentity(ctx);
-    const oauth = buildOAuthClient();
-    const { tokens } = await oauth.getToken(args.code);
-    oauth.setCredentials(tokens);
 
-    if (!tokens.refresh_token) {
-      throw new Error(
-        "Google did not return a refresh token. Re-consent with prompt=consent.",
-      );
+    try {
+      const accessToken = await getGoogleAccessTokenForUser(identity.subject);
+      const oauth = new google.auth.OAuth2();
+      oauth.setCredentials({ access_token: accessToken.token });
+      const gmail = google.gmail({ version: "v1", auth: oauth });
+      const profile = await gmail.users.getProfile({ userId: "me" });
+
+      return {
+        connected: true,
+        email: profile.data.emailAddress ?? null,
+        displayName: profile.data.emailAddress ?? null,
+        scopes: accessToken.scopes ?? [],
+        connectedAt: accessToken.expiresAt ?? null,
+      };
+    } catch (error) {
+      return {
+        connected: false,
+        email: null,
+        displayName: null,
+        scopes: [],
+        connectedAt: null,
+        failureReason:
+          error instanceof Error ? error.message : "Google mail token unavailable.",
+      };
     }
-
-    const gmail = google.gmail({ version: "v1", auth: oauth });
-    const profile = await gmail.users.getProfile({ userId: "me" });
-
-    await ctx.runMutation(internal.gmail.saveConnectionInternal, {
-      userId: identity.subject,
-      email: profile.data.emailAddress ?? "",
-      displayName: profile.data.emailAddress ?? "",
-      encryptedRefreshToken: encryptSecret(tokens.refresh_token),
-      scopes: tokens.scope?.split(" ") ?? ["https://www.googleapis.com/auth/gmail.send"],
-      tokenType: tokens.token_type ?? "Bearer",
-      expiryDate: tokens.expiry_date ?? undefined,
-    });
-
-    return {
-      email: profile.data.emailAddress ?? "",
-      connected: true,
-    };
   },
 });
 
 export async function getAuthorizedGmailClient(ctx: any, userId: string) {
-  const account = await ctx.runQuery(internal.gmail.getByUserIdInternal, {
-    userId,
-  });
-
-  if (!account?.isConnected) {
-    throw new Error("No connected Gmail account found.");
-  }
-
-  const oauth = buildOAuthClient();
+  const accessToken = await getGoogleAccessTokenForUser(userId);
+  const oauth = new google.auth.OAuth2();
   oauth.setCredentials({
-    refresh_token: decryptSecret(account.encryptedRefreshToken),
+    access_token: accessToken.token,
   });
+  const gmail = google.gmail({ version: "v1", auth: oauth });
+  const profile = await gmail.users.getProfile({ userId: "me" });
 
   return {
-    gmail: google.gmail({ version: "v1", auth: oauth }),
-    account,
+    gmail,
+    account: {
+      email: profile.data.emailAddress ?? "",
+      displayName: profile.data.emailAddress ?? "",
+      scopes: accessToken.scopes ?? [],
+      expiresAt: accessToken.expiresAt ?? null,
+    },
   };
 }

@@ -66,6 +66,25 @@ export const list = query({
   },
 });
 
+export const remove = mutation({
+  args: {
+    attachmentId: v.id("attachments"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const attachment = await ctx.db.get(args.attachmentId);
+
+    if (!attachment || attachment.userId !== identity.subject) {
+      throw new Error("Attachment not found.");
+    }
+
+    await ctx.storage.delete(attachment.storageId);
+    await ctx.db.delete(args.attachmentId);
+
+    return { removed: true };
+  },
+});
+
 export const listByUserIdInternal = internalQuery({
   args: {
     userId: v.string(),

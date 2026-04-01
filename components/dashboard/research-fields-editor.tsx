@@ -5,10 +5,7 @@ import { makeResearchField } from "@/shared/profile-utils";
 import styles from "./research-fields-editor.module.css";
 
 function parseList(value: string) {
-  return value
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return value.split("\n");
 }
 
 function stringifyList(value: string[]) {

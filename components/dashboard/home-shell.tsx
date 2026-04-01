@@ -1,42 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import {
-  UserButton,
-  useUser,
-} from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { api } from "@/convex/_generated/api";
-import { ResearchFieldsEditor } from "@/components/dashboard/research-fields-editor";
 import { plainTextToHtml } from "@/shared/html-email";
 import { defaultProfile } from "@/shared/default-profile";
 import { renderEmailDraft } from "@/shared/email-template";
 import {
+  isLegacySeededProfile,
   isProfileOnboarded,
-  makeResearchField,
   normalizeResearchFields,
 } from "@/shared/profile-utils";
 import type { ProfileDraft } from "@/shared/types";
+import { useGmailStatus } from "@/src/hooks/use-gmail-status";
 import { getSupportedTimezones } from "@/src/lib/timezones";
 import styles from "./home-shell.module.css";
-
-type GmailStatus = {
-  connected: boolean;
-  email: string | null;
-  displayName: string | null;
-  scopes: string[];
-  connectedAt: number | null;
-};
 
 const defaultCompose = {
   professorName: "",
   professorEmail: "",
   researchTitle: "",
   researchAbstract: "",
-  researchField: defaultProfile.researchFields[0]?.name ?? "",
+  researchField: "",
   notes: "",
 };
 
@@ -52,20 +41,16 @@ export function HomeShell() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { user } = useUser();
+  const { gmailStatus, gmailStatusLoading } = useGmailStatus();
   const queryArgs = isAuthenticated ? {} : "skip";
 
   const profile = useQuery(api.profiles.getForCurrentUser, queryArgs) as
     | (ProfileDraft & { userId?: string })
     | undefined;
-  const gmailStatus = useQuery(api.gmail.getStatus, queryArgs) as GmailStatus | undefined;
   const attachments = (useQuery(api.attachments.list, queryArgs) ?? []) as Array<any>;
   const scheduled = (useQuery(api.emails.listScheduled, queryArgs) ?? []) as Array<any>;
   const recent = (useQuery(api.emails.listRecent, queryArgs) ?? []) as Array<any>;
 
-  const saveProfile = useMutation(api.profiles.upsert);
-  const generateUploadUrl = useMutation(api.attachments.generateUploadUrl);
-  const saveAttachment = useMutation(api.attachments.saveMetadata);
-  const disconnectGmail = useMutation(api.gmail.disconnect);
   const generateDraft = useAction(api.emailsActions.generateDraft);
   const sendNow = useAction(api.emailsActions.sendNow);
   const scheduleEmail = useMutation(api.emails.schedule);
@@ -78,60 +63,58 @@ export function HomeShell() {
   const [generatedHook, setGeneratedHook] = useState("");
   const [scheduledLocalAt, setScheduledLocalAt] = useState("");
   const [timezone, setTimezone] = useState("Asia/Kolkata");
-  const [attachmentKind, setAttachmentKind] = useState<"cv" | "transcript" | "other">(
-    "cv",
-  );
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [message, setMessage] = useState<{
     type: "info" | "success" | "error";
     text: string;
   } | null>(null);
-  const [isSavingProfile, startSavingProfile] = useTransition();
-  const [isUploading, startUploading] = useTransition();
   const [isGenerating, startGenerating] = useTransition();
   const [isScheduling, startScheduling] = useTransition();
   const [isSending, startSending] = useTransition();
 
   useEffect(() => {
-    if (profile && !profileHydrated) {
-      const clerkFullName = [user?.firstName, user?.lastName]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-      const defaultName = defaultProfile.fullName;
-      const resolvedName =
-        profile.fullName && profile.fullName !== defaultName
-          ? profile.fullName
-          : clerkFullName || profile.fullName || defaultName;
-      const researchFields = normalizeResearchFields(profile.researchFields);
+    if (!profile || profileHydrated) return;
 
-      setProfileDraft({
-        fullName: resolvedName,
-        degree: profile.degree ?? defaultProfile.degree,
-        school: profile.school ?? defaultProfile.school,
-        location: profile.location ?? defaultProfile.location,
-        phone: profile.phone ?? defaultProfile.phone,
-        defaultSubject: profile.defaultSubject ?? defaultProfile.defaultSubject,
-        introduction: profile.introduction ?? defaultProfile.introduction,
-        closingText: profile.closingText ?? defaultProfile.closingText,
-        researchFields,
-        honors: profile.honors ?? defaultProfile.honors,
-        publicationBlurb:
-          profile.publicationBlurb ?? defaultProfile.publicationBlurb,
-        goodEmailExamples:
-          profile.goodEmailExamples ?? defaultProfile.goodEmailExamples,
-      });
-      setCompose((current) => ({
-        ...current,
-        researchField: researchFields[0]?.name ?? current.researchField,
-      }));
-      setDraftSubject(profile.defaultSubject ?? defaultProfile.defaultSubject);
-      setProfileHydrated(true);
-    }
+    const clerkFullName = [user?.firstName, user?.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const shouldTreatAsBlank =
+      !profile.fullName?.trim() || isLegacySeededProfile(profile);
+    const researchFields = normalizeResearchFields(profile.researchFields);
+
+    setProfileDraft({
+      fullName: shouldTreatAsBlank ? clerkFullName : profile.fullName || clerkFullName,
+      degree: shouldTreatAsBlank ? "" : profile.degree ?? defaultProfile.degree,
+      school: shouldTreatAsBlank ? "" : profile.school ?? defaultProfile.school,
+      location: shouldTreatAsBlank ? "" : profile.location ?? defaultProfile.location,
+      phone: shouldTreatAsBlank ? "" : profile.phone ?? defaultProfile.phone,
+      defaultSubject:
+        shouldTreatAsBlank ? "" : profile.defaultSubject ?? defaultProfile.defaultSubject,
+      introduction:
+        shouldTreatAsBlank ? "" : profile.introduction ?? defaultProfile.introduction,
+      closingText:
+        shouldTreatAsBlank ? "" : profile.closingText ?? defaultProfile.closingText,
+      researchFields,
+      honors: shouldTreatAsBlank ? [] : profile.honors ?? defaultProfile.honors,
+      publicationBlurb: shouldTreatAsBlank
+        ? ""
+        : profile.publicationBlurb ?? defaultProfile.publicationBlurb,
+      goodEmailExamples: shouldTreatAsBlank
+        ? ""
+        : profile.goodEmailExamples ?? defaultProfile.goodEmailExamples,
+    });
+    setCompose((current) => ({
+      ...current,
+      researchField: researchFields[0]?.name ?? current.researchField,
+    }));
+    setDraftSubject(
+      shouldTreatAsBlank ? "" : profile.defaultSubject ?? defaultProfile.defaultSubject,
+    );
+    setProfileHydrated(true);
   }, [profile, profileHydrated, user?.firstName, user?.lastName]);
 
   useEffect(() => {
-    if (profileHydrated && profile && !isProfileOnboarded(profile)) {
+    if (profile && profileHydrated && !isProfileOnboarded(profile)) {
       router.replace("/onboarding");
     }
   }, [profile, profileHydrated, router]);
@@ -182,65 +165,11 @@ export function HomeShell() {
     );
   }
 
-  async function handleSaveProfile() {
-    startSavingProfile(async () => {
-      try {
-        await saveProfile({
-          ...profileDraft,
-          researchFields: researchFieldOptions,
-        });
-        setMessage({ type: "success", text: "Profile saved to Convex." });
-      } catch (error) {
-        setMessage({
-          type: "error",
-          text: error instanceof Error ? error.message : "Failed to save profile.",
-        });
-      }
-    });
-  }
-
-  async function handleUploadAttachment() {
-    if (!attachmentFile) {
-      setMessage({ type: "error", text: "Choose a file before uploading." });
-      return;
-    }
-
-    startUploading(async () => {
-      try {
-        const uploadUrl = await generateUploadUrl({});
-        const result = await fetch(uploadUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": attachmentFile.type || "application/octet-stream",
-          },
-          body: attachmentFile,
-        });
-
-        const { storageId } = await result.json();
-        await saveAttachment({
-          kind: attachmentKind,
-          fileName: attachmentFile.name,
-          contentType: attachmentFile.type || "application/octet-stream",
-          storageId,
-          size: attachmentFile.size,
-        });
-
-        setAttachmentFile(null);
-        setMessage({ type: "success", text: `${attachmentFile.name} uploaded.` });
-      } catch (error) {
-        setMessage({
-          type: "error",
-          text: error instanceof Error ? error.message : "Failed to upload file.",
-        });
-      }
-    });
-  }
-
   async function handleGenerateDraft() {
     if (!compose.researchField) {
       setMessage({
         type: "error",
-        text: "Add at least one research field before generating a draft.",
+        text: "Add at least one research field on the profile page before generating a draft.",
       });
       return;
     }
@@ -265,6 +194,23 @@ export function HomeShell() {
   }
 
   async function handleSendNow() {
+    if (!gmailStatus.connected) {
+      setMessage({
+        type: "error",
+        text:
+          "Google mail permission is not ready. Sign out, sign back in with Google, and approve Gmail send access once.",
+      });
+      return;
+    }
+
+    if (!draftText.trim() || !draftSubject.trim()) {
+      setMessage({
+        type: "error",
+        text: "Generate or write a subject and draft before sending.",
+      });
+      return;
+    }
+
     startSending(async () => {
       try {
         await sendNow({
@@ -288,6 +234,23 @@ export function HomeShell() {
   }
 
   async function handleSchedule() {
+    if (!gmailStatus.connected) {
+      setMessage({
+        type: "error",
+        text:
+          "Google mail permission is not ready. Sign out, sign back in with Google, and approve Gmail send access once.",
+      });
+      return;
+    }
+
+    if (!draftText.trim() || !draftSubject.trim()) {
+      setMessage({
+        type: "error",
+        text: "Generate or write a subject and draft before scheduling.",
+      });
+      return;
+    }
+
     if (!scheduledLocalAt) {
       setMessage({ type: "error", text: "Choose a date and time first." });
       return;
@@ -314,20 +277,6 @@ export function HomeShell() {
     });
   }
 
-  async function handleDisconnectGmail() {
-    startTransition(async () => {
-      try {
-        await disconnectGmail({});
-        setMessage({ type: "success", text: "Disconnected Gmail." });
-      } catch (error) {
-        setMessage({
-          type: "error",
-          text: error instanceof Error ? error.message : "Failed to disconnect Gmail.",
-        });
-      }
-    });
-  }
-
   const previewHtml = draftText
     ? plainTextToHtml(draftText)
     : renderEmailDraft({
@@ -348,13 +297,21 @@ export function HomeShell() {
       <div className={styles.shell}>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>Convex + Gmail + OpenAI</span>
+            <span className={styles.eyebrow}>Mailing Workspace</span>
             <h1 className={styles.title}>Cold Mailer 469</h1>
             <p className={styles.lead}>
-              Each signed-in user manages their own research fields, mailbox, and
-              profile context. Drafts stay editable, and the final email HTML is
-              rendered consistently before sending or scheduling.
+              Generate drafts against your own saved research fields, keep the body
+              editable, and send consistently formatted HTML through Gmail with
+              history preserved per user.
             </p>
+            <div className={styles.heroActions}>
+              <Link href="/profile" className={styles.button}>
+                Open profile and docs
+              </Link>
+              <Link href="/onboarding" className={styles.buttonGhost}>
+                Revisit onboarding
+              </Link>
+            </div>
           </div>
 
           <div className={styles.heroPanel}>
@@ -371,6 +328,16 @@ export function HomeShell() {
               <strong>{statFailed}</strong>
             </div>
             <div>
+              <span>Mail</span>
+              <strong>
+                {gmailStatusLoading
+                  ? "Checking..."
+                  : gmailStatus.connected
+                    ? "Ready"
+                    : "Needs consent"}
+              </strong>
+            </div>
+            <div>
               <span>Session</span>
               <strong>
                 <UserButton afterSignOutUrl="/sign-up" />
@@ -379,612 +346,337 @@ export function HomeShell() {
           </div>
         </section>
 
-          <div className={styles.grid}>
-            <div className={styles.column}>
-              {message ? (
-                <div
-                  className={`${styles.message} ${
-                    message.type === "success"
-                      ? styles.messageSuccess
-                      : message.type === "error"
-                        ? styles.messageError
-                        : ""
+        <div className={styles.grid}>
+          <div className={styles.column}>
+            {message ? (
+              <div
+                className={`${styles.message} ${
+                  message.type === "success"
+                    ? styles.messageSuccess
+                    : message.type === "error"
+                      ? styles.messageError
+                      : ""
+                }`}
+              >
+                {message.text}
+              </div>
+            ) : null}
+
+            <section className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h2>Compose</h2>
+                  <p>
+                    Generate a tailored research-intro paragraph, then edit the full
+                    draft before sending.
+                  </p>
+                </div>
+                <span
+                  className={`${styles.statusPill} ${
+                    gmailStatus.connected ? styles.statusConnected : styles.statusFailed
                   }`}
                 >
-                  {message.text}
-                </div>
-              ) : null}
-
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h2>Compose</h2>
-                    <p>
-                      Generate a tailored research-intro paragraph, then edit the
-                      full draft before sending.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.formGrid}>
-                  <div className={styles.field}>
-                    <label>Professor name</label>
-                    <input
-                      className={styles.input}
-                      value={compose.professorName}
-                      onChange={(event) =>
-                        setCompose((current) => ({
-                          ...current,
-                          professorName: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label>Professor email</label>
-                    <input
-                      className={styles.input}
-                      type="email"
-                      value={compose.professorEmail}
-                      onChange={(event) =>
-                        setCompose((current) => ({
-                          ...current,
-                          professorEmail: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Research title</label>
-                    <input
-                      className={styles.input}
-                      value={compose.researchTitle}
-                      onChange={(event) =>
-                        setCompose((current) => ({
-                          ...current,
-                          researchTitle: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Research abstract</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={compose.researchAbstract}
-                      onChange={(event) =>
-                        setCompose((current) => ({
-                          ...current,
-                          researchAbstract: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label>Research field</label>
-                    <select
-                      className={styles.select}
-                      value={compose.researchField}
-                      onChange={(event) =>
-                        setCompose((current) => ({
-                          ...current,
-                          researchField: event.target.value,
-                        }))
-                      }
-                    >
-                      {researchFieldOptions.map((field) => (
-                        <option key={field.id} value={field.name}>
-                          {field.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={styles.field}>
-                    <label>Timezone</label>
-                    <select
-                      className={styles.select}
-                      value={timezone}
-                      onChange={(event) => setTimezone(event.target.value)}
-                    >
-                      {timezoneOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Additional comments</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={compose.notes}
-                      onChange={(event) =>
-                        setCompose((current) => ({
-                          ...current,
-                          notes: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.buttonRow}>
-                  <button
-                    className={styles.button}
-                    onClick={handleGenerateDraft}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? "Generating..." : "Generate draft"}
-                  </button>
-                </div>
-
-                <div className={styles.formGrid}>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Subject</label>
-                    <input
-                      className={styles.input}
-                      value={draftSubject}
-                      onChange={(event) => setDraftSubject(event.target.value)}
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Editable draft</label>
-                    <textarea
-                      className={`${styles.textarea} ${styles.draftArea}`}
-                      value={draftText}
-                      onChange={(event) => setDraftText(event.target.value)}
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label>Schedule date and time</label>
-                    <input
-                      className={styles.input}
-                      type="datetime-local"
-                      value={scheduledLocalAt}
-                      onChange={(event) => setScheduledLocalAt(event.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.buttonRow}>
-                  <button
-                    className={styles.buttonGhost}
-                    onClick={handleSendNow}
-                    disabled={isSending}
-                  >
-                    {isSending ? "Sending..." : "Send now"}
-                  </button>
-                  <button
-                    className={styles.button}
-                    onClick={handleSchedule}
-                    disabled={isScheduling}
-                  >
-                    {isScheduling ? "Scheduling..." : "Schedule email"}
-                  </button>
-                </div>
-              </section>
-
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h2>Rendered preview</h2>
-                    <p>This is the HTML body that will be sent from Gmail.</p>
-                  </div>
-                </div>
-                <div
-                  className={styles.listItem}
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
-              </section>
-            </div>
-
-            <div className={styles.column}>
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Gmail connection</h3>
-                    <p>
-                      OAuth is separate from your app login so each user sends
-                      from their own mailbox.
-                    </p>
-                  </div>
-                  <span
-                    className={`${styles.statusPill} ${
-                      gmailStatus?.connected
-                        ? styles.statusConnected
-                        : styles.statusFailed
-                    }`}
-                  >
-                    {gmailStatus?.connected ? "Connected" : "Not connected"}
-                  </span>
-                </div>
-                <div className={styles.list}>
-                  <div className={styles.listItem}>
-                    <strong>Sender mailbox</strong>
-                    <span className={styles.muted}>
-                      {gmailStatus?.email ?? "No Gmail account connected yet."}
-                    </span>
-                  </div>
-                </div>
-                <div className={styles.buttonRow}>
-                  <Link href="/api/gmail/connect" className={styles.button}>
-                    Connect Gmail
-                  </Link>
-                  <button
-                    className={styles.buttonDanger}
-                    onClick={handleDisconnectGmail}
-                  >
-                    Disconnect
-                  </button>
-                </div>
-              </section>
-
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Profile settings</h3>
-                    <p>
-                      Everything that used to be hardcoded in Python now lives
-                      here.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.formGrid}>
-                  <div className={styles.field}>
-                    <label>Full name</label>
-                    <input
-                      className={styles.input}
-                      value={profileDraft.fullName}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          fullName: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label>Phone</label>
-                    <input
-                      className={styles.input}
-                      value={profileDraft.phone}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Degree / headline</label>
-                    <input
-                      className={styles.input}
-                      value={profileDraft.degree}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          degree: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>School</label>
-                    <input
-                      className={styles.input}
-                      value={profileDraft.school}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          school: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Location</label>
-                    <input
-                      className={styles.input}
-                      value={profileDraft.location}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          location: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Default subject</label>
-                    <input
-                      className={styles.input}
-                      value={profileDraft.defaultSubject}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          defaultSubject: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Introduction</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={profileDraft.introduction}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          introduction: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Closing text</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={profileDraft.closingText}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          closingText: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className={styles.buttonRow}>
-                  <button
-                    className={styles.button}
-                    onClick={handleSaveProfile}
-                    disabled={isSavingProfile}
-                  >
-                    {isSavingProfile ? "Saving..." : "Save profile"}
-                  </button>
-                </div>
-              </section>
-
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Research fields</h3>
-                    <p>
-                      Manage the exact research-field options available in the
-                      compose dropdown for this user.
-                    </p>
-                  </div>
-                </div>
-                <ResearchFieldsEditor
-                  fields={
-                    profileDraft.researchFields.length > 0
-                      ? profileDraft.researchFields
-                      : [makeResearchField("")]
-                  }
-                  onChange={(researchFields) => {
-                    setProfileDraft((current) => ({ ...current, researchFields }));
-                    const firstNamedField = researchFields.find((field) => field.name.trim());
-                    if (firstNamedField) {
-                      setCompose((current) => ({
-                        ...current,
-                        researchField:
-                          current.researchField && researchFields.some(
-                            (field) => field.name === current.researchField,
-                          )
-                            ? current.researchField
-                            : firstNamedField.name,
-                      }));
-                    }
-                  }}
-                />
-              </section>
-
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Additional profile context</h3>
-                    <p>
-                      These shape the prompt, signature, and final deterministic
-                      email body.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.formGrid}>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Honors and publication blurbs (one per line)</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={profileDraft.honors.join("\n")}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          honors: event.target.value
-                            .split("\n")
-                            .map((item) => item.trim())
-                            .filter(Boolean),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Publication summary</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={profileDraft.publicationBlurb}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          publicationBlurb: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className={`${styles.field} ${styles.fieldWide}`}>
-                    <label>Good email examples or style notes</label>
-                    <textarea
-                      className={styles.textarea}
-                      value={profileDraft.goodEmailExamples}
-                      onChange={(event) =>
-                        setProfileDraft((current) => ({
-                          ...current,
-                          goodEmailExamples: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Attachments</h3>
-                    <p>
-                      Upload your CV, transcript, and any optional supporting
-                      files.
-                    </p>
-                  </div>
-                </div>
-                <div className={styles.uploadRow}>
-                  <select
-                    className={styles.select}
-                    value={attachmentKind}
-                    onChange={(event) =>
-                      setAttachmentKind(
-                        event.target.value as "cv" | "transcript" | "other",
-                      )
-                    }
-                  >
-                    <option value="cv">CV</option>
-                    <option value="transcript">Transcript</option>
-                    <option value="other">Other</option>
-                  </select>
+                  {gmailStatus.connected ? "Mail ready" : "Mail permission needed"}
+                </span>
+              </div>
+              <div className={styles.formGrid}>
+                <div className={styles.field}>
+                  <label>Professor name</label>
                   <input
                     className={styles.input}
-                    type="file"
+                    value={compose.professorName}
                     onChange={(event) =>
-                      setAttachmentFile(event.target.files?.[0] ?? null)
+                      setCompose((current) => ({
+                        ...current,
+                        professorName: event.target.value,
+                      }))
                     }
                   />
-                  <button
-                    className={styles.button}
-                    onClick={handleUploadAttachment}
-                    disabled={isUploading}
+                </div>
+                <div className={styles.field}>
+                  <label>Professor email</label>
+                  <input
+                    className={styles.input}
+                    type="email"
+                    value={compose.professorEmail}
+                    onChange={(event) =>
+                      setCompose((current) => ({
+                        ...current,
+                        professorEmail: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={`${styles.field} ${styles.fieldWide}`}>
+                  <label>Research title</label>
+                  <input
+                    className={styles.input}
+                    value={compose.researchTitle}
+                    onChange={(event) =>
+                      setCompose((current) => ({
+                        ...current,
+                        researchTitle: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={`${styles.field} ${styles.fieldWide}`}>
+                  <label>Research abstract</label>
+                  <textarea
+                    className={styles.textarea}
+                    value={compose.researchAbstract}
+                    onChange={(event) =>
+                      setCompose((current) => ({
+                        ...current,
+                        researchAbstract: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label>Research field</label>
+                  <select
+                    className={styles.select}
+                    value={compose.researchField}
+                    onChange={(event) =>
+                      setCompose((current) => ({
+                        ...current,
+                        researchField: event.target.value,
+                      }))
+                    }
                   >
-                    {isUploading ? "Uploading..." : "Upload"}
-                  </button>
+                    {researchFieldOptions.length === 0 ? (
+                      <option value="">Add research fields on the profile page first</option>
+                    ) : null}
+                    {researchFieldOptions.map((field) => (
+                      <option key={field.id} value={field.name}>
+                        {field.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className={styles.list}>
-                  {attachments.length === 0 ? (
-                    <div className={styles.listItem}>
-                      <span className={styles.muted}>
-                        No attachments uploaded yet.
-                      </span>
-                    </div>
-                  ) : (
-                    attachments.map((attachment) => (
-                      <div key={attachment._id} className={styles.listItem}>
-                        <strong>{attachment.fileName}</strong>
-                        <span className={styles.muted}>
-                          {attachment.kind.toUpperCase()} .{" "}
-                          {(attachment.size / 1024).toFixed(1)} KB
-                        </span>
-                      </div>
-                    ))
-                  )}
+                <div className={styles.field}>
+                  <label>Timezone</label>
+                  <select
+                    className={styles.select}
+                    value={timezone}
+                    onChange={(event) => setTimezone(event.target.value)}
+                  >
+                    {timezoneOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </section>
+                <div className={`${styles.field} ${styles.fieldWide}`}>
+                  <label>Additional comments</label>
+                  <textarea
+                    className={styles.textarea}
+                    value={compose.notes}
+                    onChange={(event) =>
+                      setCompose((current) => ({
+                        ...current,
+                        notes: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
 
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Scheduled emails</h3>
-                    <p>Convex keeps these queued with per-email jobs.</p>
-                  </div>
-                </div>
-                <div className={styles.list}>
-                  {scheduled.length === 0 ? (
-                    <div className={styles.listItem}>
-                      <span className={styles.muted}>
-                        No scheduled emails yet.
-                      </span>
-                    </div>
-                  ) : (
-                    [...scheduled]
-                      .sort(
-                        (left, right) =>
-                          (left.scheduledForUtcMs ?? 0) -
-                          (right.scheduledForUtcMs ?? 0),
-                      )
-                      .map((email) => (
-                        <div key={email._id} className={styles.listItem}>
-                          <strong>{email.professorName}</strong>
-                          <span className={styles.muted}>
-                            {email.professorEmail}
-                          </span>
-                          <br />
-                          <span className={styles.muted}>
-                            {formatDateTime(email.scheduledForUtcMs)}
-                          </span>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </section>
+              <div className={styles.buttonRow}>
+                <button
+                  className={styles.button}
+                  onClick={handleGenerateDraft}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? "Generating..." : "Generate draft"}
+                </button>
+                <Link href="/profile" className={styles.buttonGhost}>
+                  Manage profile, fields, and docs
+                </Link>
+              </div>
 
-              <section className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h3>Recent activity</h3>
-                    <p>Sent and failed deliveries stay visible for review.</p>
-                  </div>
+              <div className={styles.formGrid}>
+                <div className={`${styles.field} ${styles.fieldWide}`}>
+                  <label>Subject</label>
+                  <input
+                    className={styles.input}
+                    value={draftSubject}
+                    onChange={(event) => setDraftSubject(event.target.value)}
+                  />
                 </div>
-                <div className={styles.list}>
-                  {recent.length === 0 ? (
-                    <div className={styles.listItem}>
-                      <span className={styles.muted}>No email history yet.</span>
-                    </div>
-                  ) : (
-                    recent.map((email) => (
+                <div className={`${styles.field} ${styles.fieldWide}`}>
+                  <label>Editable draft</label>
+                  <textarea
+                    className={`${styles.textarea} ${styles.draftArea}`}
+                    value={draftText}
+                    onChange={(event) => setDraftText(event.target.value)}
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label>Schedule date and time</label>
+                  <input
+                    className={styles.input}
+                    type="datetime-local"
+                    value={scheduledLocalAt}
+                    onChange={(event) => setScheduledLocalAt(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.buttonRow}>
+                <button
+                  className={styles.buttonGhost}
+                  onClick={handleSendNow}
+                  disabled={isSending}
+                >
+                  {isSending ? "Sending..." : "Send now"}
+                </button>
+                <button
+                  className={styles.button}
+                  onClick={handleSchedule}
+                  disabled={isScheduling}
+                >
+                  {isScheduling ? "Scheduling..." : "Schedule email"}
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div className={styles.column}>
+            <section className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h3>Workspace status</h3>
+                  <p>The sender profile, Google permission, and attachments used in this mail.</p>
+                </div>
+              </div>
+              <div className={styles.list}>
+                <div className={styles.listItem}>
+                  <strong>Sender</strong>
+                  <span className={styles.muted}>
+                    {profileDraft.fullName || "Complete your profile name on the profile page."}
+                  </span>
+                </div>
+                <div className={styles.listItem}>
+                  <strong>Google mail</strong>
+                  <span className={styles.muted}>
+                    {gmailStatus.connected
+                      ? gmailStatus.email ?? "Connected"
+                      : gmailStatus.failureReason ??
+                        "Sign out and sign back in with Google once to refresh the Gmail-send scope."}
+                  </span>
+                </div>
+                <div className={styles.listItem}>
+                  <strong>Research fields</strong>
+                  <span className={styles.muted}>
+                    {researchFieldOptions.length} configured for this user
+                  </span>
+                </div>
+                <div className={styles.listItem}>
+                  <strong>Attachments</strong>
+                  <span className={styles.muted}>
+                    {attachments.length} file{attachments.length === 1 ? "" : "s"} attached
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <section className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h3>Rendered preview</h3>
+                  <p>This is the HTML body that will be sent from Gmail.</p>
+                </div>
+              </div>
+              <div
+                className={styles.listItem}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </section>
+
+            <section className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h3>Scheduled emails</h3>
+                  <p>Convex keeps these queued with per-email jobs.</p>
+                </div>
+              </div>
+              <div className={styles.list}>
+                {scheduled.length === 0 ? (
+                  <div className={styles.listItem}>
+                    <span className={styles.muted}>No scheduled emails yet.</span>
+                  </div>
+                ) : (
+                  [...scheduled]
+                    .sort(
+                      (left, right) =>
+                        (left.scheduledForUtcMs ?? 0) - (right.scheduledForUtcMs ?? 0),
+                    )
+                    .map((email) => (
                       <div key={email._id} className={styles.listItem}>
-                        <div className={styles.inline}>
-                          <strong>{email.professorName}</strong>
-                          <span
-                            className={`${styles.statusPill} ${
-                              email.status === "sent"
-                                ? styles.statusConnected
-                                : email.status === "failed"
-                                  ? styles.statusFailed
-                                  : ""
-                            }`}
-                          >
-                            {email.status}
-                          </span>
-                        </div>
-                        <span className={styles.muted}>
-                          {email.professorEmail}
-                        </span>
+                        <strong>{email.professorName}</strong>
+                        <span className={styles.muted}>{email.professorEmail}</span>
                         <br />
                         <span className={styles.muted}>
-                          {email.sentAtMs
-                            ? formatDateTime(email.sentAtMs)
-                            : formatDateTime(email.createdAt)}
+                          {formatDateTime(email.scheduledForUtcMs)}
                         </span>
-                        {email.failureReason ? (
-                          <>
-                            <br />
-                            <span className={styles.muted}>
-                              {email.failureReason}
-                            </span>
-                          </>
-                        ) : null}
                       </div>
                     ))
-                  )}
+                )}
+              </div>
+            </section>
+
+            <section className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h3>Recent activity</h3>
+                  <p>Sent and failed deliveries stay visible for review.</p>
                 </div>
-              </section>
-            </div>
+              </div>
+              <div className={styles.list}>
+                {recent.length === 0 ? (
+                  <div className={styles.listItem}>
+                    <span className={styles.muted}>No email history yet.</span>
+                  </div>
+                ) : (
+                  recent.map((email) => (
+                    <div key={email._id} className={styles.listItem}>
+                      <div className={styles.inline}>
+                        <strong>{email.professorName}</strong>
+                        <span
+                          className={`${styles.statusPill} ${
+                            email.status === "sent"
+                              ? styles.statusConnected
+                              : email.status === "failed"
+                                ? styles.statusFailed
+                                : ""
+                          }`}
+                        >
+                          {email.status}
+                        </span>
+                      </div>
+                      <span className={styles.muted}>{email.professorEmail}</span>
+                      <br />
+                      <span className={styles.muted}>
+                        {email.sentAtMs
+                          ? formatDateTime(email.sentAtMs)
+                          : formatDateTime(email.createdAt)}
+                      </span>
+                      {email.failureReason ? (
+                        <>
+                          <br />
+                          <span className={styles.muted}>{email.failureReason}</span>
+                        </>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
           </div>
+        </div>
       </div>
     </main>
   );

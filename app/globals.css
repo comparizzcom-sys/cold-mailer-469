@@ -109,3 +109,7 @@ textarea {
   border-color: var(--border);
   color: var(--text);
 }
+
+.topbarButton.active {
+  background: rgba(255, 255, 255, 0.08);
+}

@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import {
   SignInButton,
   SignUpButton,
   UserButton,
   useAuth,
 } from "@clerk/nextjs";
+import { usePathname } from "next/navigation";
 
 export function SiteHeader() {
   const { isLoaded, isSignedIn } = useAuth();
+  const pathname = usePathname();
 
   return (
     <header className="topbar">
@@ -17,6 +20,22 @@ export function SiteHeader() {
           <strong>Cold Mailer 469</strong>
         </div>
         <nav className="topbarNav">
+          {isLoaded && isSignedIn ? (
+            <>
+              <Link
+                href="/"
+                className={`topbarButton ghost${pathname === "/" ? " active" : ""}`}
+              >
+                Mailing
+              </Link>
+              <Link
+                href="/profile"
+                className={`topbarButton ghost${pathname === "/profile" ? " active" : ""}`}
+              >
+                Profile
+              </Link>
+            </>
+          ) : null}
           {isLoaded && !isSignedIn ? (
             <>
               <SignInButton mode="modal">
