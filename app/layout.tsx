@@ -4,6 +4,7 @@ import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
 import { SiteHeader } from "@/components/auth/site-header";
 import { AppProviders } from "@/components/providers/app-providers";
+import { assertRuntimeConfig } from "@/src/lib/runtime-config";
 import "./globals.css";
 
 const display = Space_Grotesk({
@@ -27,6 +28,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  assertRuntimeConfig({ scope: "RootLayout" });
+
   return (
       <html lang="en">
         <body className={`${display.variable} ${mono.variable}`}>

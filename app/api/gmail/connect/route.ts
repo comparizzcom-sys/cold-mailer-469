@@ -5,12 +5,24 @@ import { NextResponse } from "next/server";
 
 import { requireUser } from "@/src/lib/auth";
 import { buildGoogleAuthUrl } from "@/src/lib/gmail-oauth";
+import { assertRuntimeConfig, logRuntimeContext } from "@/src/lib/runtime-config";
 
 function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
 export async function GET() {
+  assertRuntimeConfig({
+    scope: "gmail-connect",
+    requiredKeys: [
+      "NEXT_PUBLIC_APP_URL",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_REDIRECT_URI",
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+      "CLERK_SECRET_KEY",
+    ],
+  });
+
   try {
     await requireUser();
     const state = crypto.randomUUID();
@@ -24,7 +36,9 @@ export async function GET() {
     });
 
     return NextResponse.redirect(buildGoogleAuthUrl(state));
-  } catch {
+  } catch (caught) {
+    logRuntimeContext("gmail-connect-catch");
+    console.error("[gmail-connect-error]", caught);
     return NextResponse.redirect(new URL("/sign-in", appUrl()));
   }
 }
