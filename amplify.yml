@@ -6,6 +6,9 @@ frontend:
         - npm ci
     build:
       commands:
+        - rm -f .env.production
+        - env | grep -e NEXT_PUBLIC_ >> .env.production
+        - env | grep -e '^CLERK_SECRET_KEY=' -e '^CLERK_AUTHORIZED_PARTIES=' -e '^CLERK_JWT_ISSUER_DOMAIN=' -e '^GOOGLE_CLIENT_ID=' -e '^GOOGLE_REDIRECT_URI=' >> .env.production
         - npx convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'npm run build'
   artifacts:
     baseDirectory: .next
