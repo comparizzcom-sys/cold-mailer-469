@@ -25,6 +25,20 @@ function getClerkClient() {
   return createClerkClient({ secretKey });
 }
 
+async function getGoogleIdentityForUser(userId: string) {
+  const clerk = getClerkClient();
+  const user = await clerk.users.getUser(userId);
+  const primaryEmail =
+    user.emailAddresses.find((entry) => entry.id === user.primaryEmailAddressId) ??
+    user.emailAddresses[0];
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+
+  return {
+    email: primaryEmail?.emailAddress ?? "",
+    displayName: fullName || primaryEmail?.emailAddress || "",
+  };
+}
+
 async function getGoogleAccessTokenForUser(userId: string) {
   const clerk = getClerkClient();
   let token:
@@ -68,15 +82,12 @@ export const getStatus = action({
 
     try {
       const accessToken = await getGoogleAccessTokenForUser(identity.subject);
-      const oauth = new google.auth.OAuth2();
-      oauth.setCredentials({ access_token: accessToken.token });
-      const gmail = google.gmail({ version: "v1", auth: oauth });
-      const profile = await gmail.users.getProfile({ userId: "me" });
+      const profile = await getGoogleIdentityForUser(identity.subject);
 
       return {
         connected: true,
-        email: profile.data.emailAddress ?? null,
-        displayName: profile.data.emailAddress ?? null,
+        email: profile.email || null,
+        displayName: profile.displayName || null,
         scopes: accessToken.scopes ?? [],
         connectedAt: accessToken.expiresAt ?? null,
       };
@@ -100,14 +111,13 @@ export async function getAuthorizedGmailClient(ctx: any, userId: string) {
   oauth.setCredentials({
     access_token: accessToken.token,
   });
-  const gmail = google.gmail({ version: "v1", auth: oauth });
-  const profile = await gmail.users.getProfile({ userId: "me" });
+  const identity = await getGoogleIdentityForUser(userId);
 
   return {
-    gmail,
+    gmail: google.gmail({ version: "v1", auth: oauth }),
     account: {
-      email: profile.data.emailAddress ?? "",
-      displayName: profile.data.emailAddress ?? "",
+      email: identity.email,
+      displayName: identity.displayName,
       scopes: accessToken.scopes ?? [],
       expiresAt: accessToken.expiresAt ?? null,
     },
