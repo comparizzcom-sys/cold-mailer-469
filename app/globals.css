@@ -76,15 +76,53 @@ a:focus-visible {
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1.45;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   box-shadow: var(--shadow);
 }
 
-.authNotice a {
+.authNoticeDetails {
+  display: inline-block;
+  margin-left: 0.45rem;
+}
+
+.authNoticeDetails summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0.32rem 0.68rem;
+  border: 2px solid var(--border-strong);
+  background: #f5f5f5;
+  color: #0a0a0a;
+  cursor: pointer;
+  list-style: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.authNoticeDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.authNoticeMenu {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.authNoticeAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0.32rem 0.68rem;
+  border: 2px solid var(--border-strong);
+  background: var(--panel-strong);
   color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-decoration: none;
 }
 
 .errorCard {
@@ -134,13 +172,14 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0.55rem 0.9rem;
+  min-height: 36px;
+  padding: 0.45rem 0.78rem;
   border: 2px solid var(--border-strong);
   background: var(--accent);
   color: #0a0a0a;
   cursor: pointer;
   font-weight: 700;
+  font-size: 0.88rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -153,4 +192,20 @@ a:focus-visible {
 .topbarButton.active {
   background: #f5f5f5;
   color: #0a0a0a;
+}
+
+@media (max-width: 560px) {
+  .authNoticeDetails {
+    display: block;
+    margin-left: 0;
+    margin-top: 0.55rem;
+  }
+
+  .topbarInner {
+    padding: 0.8rem 1rem;
+  }
+
+  .topbarNav {
+    gap: 0.5rem;
+  }
 }

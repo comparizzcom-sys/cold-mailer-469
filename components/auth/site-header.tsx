@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   SignInButton,
-  SignUpButton,
   UserButton,
   useAuth,
 } from "@clerk/nextjs";
@@ -47,9 +46,6 @@ export function SiteHeader() {
               <SignInButton mode="modal">
                 <button className="topbarButton">Sign in</button>
               </SignInButton>
-              <SignUpButton mode="modal">
-                <button className="topbarButton ghost">Create account</button>
-              </SignUpButton>
             </>
           ) : null}
           {isLoaded && isSignedIn ? <UserButton afterSignOutUrl="/" /> : null}

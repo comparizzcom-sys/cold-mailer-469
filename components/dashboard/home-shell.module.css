@@ -170,12 +170,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: 40px;
   border: 2px solid var(--border-strong);
-  padding: 0.72rem 0.95rem;
+  padding: 0.58rem 0.82rem;
   cursor: pointer;
   text-decoration: none;
   font-weight: 700;
+  font-size: 0.88rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -287,25 +288,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: 40px;
   border: 2px solid var(--border-strong);
-  padding: 0.72rem 0.95rem;
+  padding: 0.58rem 0.82rem;
   background: var(--panel);
   color: var(--text);
   font-weight: 700;
+  font-size: 0.88rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 .fileName {
-  min-height: 44px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   border: 2px solid var(--border);
   background: #0c0c0c;
   color: var(--muted);
-  padding: 0.72rem 0.95rem;
+  padding: 0.58rem 0.82rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

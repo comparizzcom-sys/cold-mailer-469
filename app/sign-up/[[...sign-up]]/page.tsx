@@ -1,12 +1,11 @@
 import { SignUp } from "@clerk/nextjs";
+import { BetaAccessPill } from "@/components/auth/beta-access-pill";
 
 export default function SignUpPage() {
   return (
     <main className="authPage">
       <div className="authStack">
-        <div className="authNotice">
-          Beta access: contact <a href="mailto:aymaanalam.nitt@gmail.com">aymaanalam.nitt@gmail.com</a> to use Cold Mailer 469.
-        </div>
+        <BetaAccessPill />
         <SignUp fallbackRedirectUrl="/onboarding" />
       </div>
     </main>
