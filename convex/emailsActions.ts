@@ -61,7 +61,9 @@ function buildPrompt(args: {
     "Keep the tone respectful, specific, and serious about research.",
     "Do not include greeting or sign-off.",
     "Stay under 95 words.",
-    args.notes ? `Extra notes from the sender: ${args.notes}` : "",
+    args.notes
+      ? `Additional instructions for tailoring the draft: ${args.notes}`
+      : "",
     args.goodEmailExamples
       ? `Style examples from the sender:\n${args.goodEmailExamples}`
       : "",

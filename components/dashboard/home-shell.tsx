@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { api } from "@/convex/_generated/api";
 import { plainTextToHtml } from "@/shared/html-email";
@@ -63,8 +63,9 @@ export function HomeShell() {
   const [generatedHook, setGeneratedHook] = useState("");
   const [scheduledLocalAt, setScheduledLocalAt] = useState("");
   const [timezone, setTimezone] = useState("Asia/Kolkata");
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
   const [message, setMessage] = useState<{
-    type: "info" | "success" | "error";
+    type: "success" | "error";
     text: string;
   } | null>(null);
   const [isGenerating, startGenerating] = useTransition();
@@ -134,8 +135,8 @@ export function HomeShell() {
           <section className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h2>Loading workspace</h2>
-                <p>Waiting for your Clerk session to be validated with Convex.</p>
+                <h2>Loading</h2>
+                <p>Opening your mailing workspace.</p>
               </div>
             </div>
           </section>
@@ -151,12 +152,8 @@ export function HomeShell() {
           <section className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h2>Convex authentication not ready</h2>
-                <p>
-                  You are signed into Clerk, but Convex has not accepted the session
-                  token yet. Check the Clerk Convex integration, JWT issuer domain,
-                  and the `convex` JWT template in Clerk.
-                </p>
+                <h2>Session not ready</h2>
+                <p>Refresh the page or sign in again.</p>
               </div>
             </div>
           </section>
@@ -169,7 +166,7 @@ export function HomeShell() {
     if (!compose.researchField) {
       setMessage({
         type: "error",
-        text: "Add at least one research field on the profile page before generating a draft.",
+        text: "Add at least one research field on the profile page first.",
       });
       return;
     }
@@ -182,12 +179,12 @@ export function HomeShell() {
         setGeneratedHook(result.generatedHook);
         setMessage({
           type: "success",
-          text: "Draft generated. You can edit it before sending.",
+          text: "Draft ready. Edit it if needed.",
         });
       } catch (error) {
         setMessage({
           type: "error",
-          text: error instanceof Error ? error.message : "Failed to generate draft.",
+          text: error instanceof Error ? error.message : "Could not generate draft.",
         });
       }
     });
@@ -197,8 +194,7 @@ export function HomeShell() {
     if (!gmailStatus.connected) {
       setMessage({
         type: "error",
-        text:
-          "Google mail permission is not ready. Sign out, sign back in with Google, and approve Gmail send access once.",
+        text: "Mail access is not ready. Sign out and sign back in with Google once.",
       });
       return;
     }
@@ -206,7 +202,7 @@ export function HomeShell() {
     if (!draftText.trim() || !draftSubject.trim()) {
       setMessage({
         type: "error",
-        text: "Generate or write a subject and draft before sending.",
+        text: "Write or generate the subject and draft first.",
       });
       return;
     }
@@ -222,12 +218,12 @@ export function HomeShell() {
         });
         setMessage({
           type: "success",
-          text: "Email sent or queued for immediate send.",
+          text: "Mail sent.",
         });
       } catch (error) {
         setMessage({
           type: "error",
-          text: error instanceof Error ? error.message : "Failed to send email.",
+          text: error instanceof Error ? error.message : "Could not send mail.",
         });
       }
     });
@@ -237,8 +233,7 @@ export function HomeShell() {
     if (!gmailStatus.connected) {
       setMessage({
         type: "error",
-        text:
-          "Google mail permission is not ready. Sign out, sign back in with Google, and approve Gmail send access once.",
+        text: "Mail access is not ready. Sign out and sign back in with Google once.",
       });
       return;
     }
@@ -246,7 +241,7 @@ export function HomeShell() {
     if (!draftText.trim() || !draftSubject.trim()) {
       setMessage({
         type: "error",
-        text: "Generate or write a subject and draft before scheduling.",
+        text: "Write or generate the subject and draft first.",
       });
       return;
     }
@@ -267,13 +262,33 @@ export function HomeShell() {
           scheduledLocalAt,
           timezone,
         });
-        setMessage({ type: "success", text: "Email scheduled successfully." });
+        setMessage({ type: "success", text: "Mail scheduled." });
       } catch (error) {
         setMessage({
           type: "error",
-          text: error instanceof Error ? error.message : "Failed to schedule email.",
+          text: error instanceof Error ? error.message : "Could not schedule mail.",
         });
       }
+    });
+  }
+
+  function applyInlineFormat(marker: "**" | "*") {
+    const textarea = draftRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
+    const selected = draftText.slice(start, end) || "text";
+    const replacement = `${marker}${selected}${marker}`;
+    const nextValue = `${draftText.slice(0, start)}${replacement}${draftText.slice(end)}`;
+
+    setDraftText(nextValue);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const selectionStart = start + marker.length;
+      const selectionEnd = selectionStart + selected.length;
+      textarea.setSelectionRange(selectionStart, selectionEnd);
     });
   }
 
@@ -297,19 +312,18 @@ export function HomeShell() {
       <div className={styles.shell}>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>Mailing Workspace</span>
-            <h1 className={styles.title}>Cold Mailer 469</h1>
+            <span className={styles.eyebrow}>Mailing</span>
+            <h1 className={styles.title}>Write, edit, and send.</h1>
             <p className={styles.lead}>
-              Generate drafts against your own saved research fields, keep the body
-              editable, and send consistently formatted HTML through Gmail with
-              history preserved per user.
+              Fill in the professor details, generate a tailored opener, edit the
+              final draft, then send now or schedule it.
             </p>
             <div className={styles.heroActions}>
               <Link href="/profile" className={styles.button}>
-                Open profile and docs
+                Profile
               </Link>
-              <Link href="/onboarding" className={styles.buttonGhost}>
-                Revisit onboarding
+              <Link href="/help" className={styles.buttonGhost}>
+                Help
               </Link>
             </div>
           </div>
@@ -331,16 +345,10 @@ export function HomeShell() {
               <span>Mail</span>
               <strong>
                 {gmailStatusLoading
-                  ? "Checking..."
+                  ? "Checking"
                   : gmailStatus.connected
                     ? "Ready"
-                    : "Needs consent"}
-              </strong>
-            </div>
-            <div>
-              <span>Session</span>
-              <strong>
-                <UserButton afterSignOutUrl="/sign-up" />
+                    : "Reconnect"}
               </strong>
             </div>
           </div>
@@ -351,11 +359,7 @@ export function HomeShell() {
             {message ? (
               <div
                 className={`${styles.message} ${
-                  message.type === "success"
-                    ? styles.messageSuccess
-                    : message.type === "error"
-                      ? styles.messageError
-                      : ""
+                  message.type === "success" ? styles.messageSuccess : styles.messageError
                 }`}
               >
                 {message.text}
@@ -366,17 +370,14 @@ export function HomeShell() {
               <div className={styles.cardHeader}>
                 <div>
                   <h2>Compose</h2>
-                  <p>
-                    Generate a tailored research-intro paragraph, then edit the full
-                    draft before sending.
-                  </p>
+                  <p>Generate the opener, then edit the full mail before it goes out.</p>
                 </div>
                 <span
                   className={`${styles.statusPill} ${
                     gmailStatus.connected ? styles.statusConnected : styles.statusFailed
                   }`}
                 >
-                  {gmailStatus.connected ? "Mail ready" : "Mail permission needed"}
+                  {gmailStatus.connected ? "Ready" : "Needs access"}
                 </span>
               </div>
               <div className={styles.formGrid}>
@@ -446,7 +447,7 @@ export function HomeShell() {
                     }
                   >
                     {researchFieldOptions.length === 0 ? (
-                      <option value="">Add research fields on the profile page first</option>
+                      <option value="">Add a field on the profile page first</option>
                     ) : null}
                     {researchFieldOptions.map((field) => (
                       <option key={field.id} value={field.name}>
@@ -463,14 +464,14 @@ export function HomeShell() {
                     onChange={(event) => setTimezone(event.target.value)}
                   >
                     {timezoneOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div className={`${styles.field} ${styles.fieldWide}`}>
-                  <label>Additional comments</label>
+                  <label>Additional instruction</label>
                   <textarea
                     className={styles.textarea}
                     value={compose.notes}
@@ -490,10 +491,10 @@ export function HomeShell() {
                   onClick={handleGenerateDraft}
                   disabled={isGenerating}
                 >
-                  {isGenerating ? "Generating..." : "Generate draft"}
+                  {isGenerating ? "Drafting..." : "Draft"}
                 </button>
                 <Link href="/profile" className={styles.buttonGhost}>
-                  Manage profile, fields, and docs
+                  Edit profile
                 </Link>
               </div>
 
@@ -507,15 +508,35 @@ export function HomeShell() {
                   />
                 </div>
                 <div className={`${styles.field} ${styles.fieldWide}`}>
-                  <label>Editable draft</label>
+                  <label>Draft</label>
+                  <div className={styles.buttonRow}>
+                    <button
+                      type="button"
+                      className={styles.buttonGhost}
+                      onClick={() => applyInlineFormat("**")}
+                    >
+                      Bold
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.buttonGhost}
+                      onClick={() => applyInlineFormat("*")}
+                    >
+                      Italic
+                    </button>
+                  </div>
                   <textarea
+                    ref={draftRef}
                     className={`${styles.textarea} ${styles.draftArea}`}
                     value={draftText}
                     onChange={(event) => setDraftText(event.target.value)}
                   />
+                  <span className={styles.muted}>
+                    Bold and italic formatting is preserved in the sent HTML.
+                  </span>
                 </div>
                 <div className={styles.field}>
-                  <label>Schedule date and time</label>
+                  <label>Send time</label>
                   <input
                     className={styles.input}
                     type="datetime-local"
@@ -531,14 +552,14 @@ export function HomeShell() {
                   onClick={handleSendNow}
                   disabled={isSending}
                 >
-                  {isSending ? "Sending..." : "Send now"}
+                  {isSending ? "Sending..." : "Send"}
                 </button>
                 <button
                   className={styles.button}
                   onClick={handleSchedule}
                   disabled={isScheduling}
                 >
-                  {isScheduling ? "Scheduling..." : "Schedule email"}
+                  {isScheduling ? "Scheduling..." : "Schedule"}
                 </button>
               </div>
             </section>
@@ -548,34 +569,33 @@ export function HomeShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Workspace status</h3>
-                  <p>The sender profile, Google permission, and attachments used in this mail.</p>
+                  <h3>Ready check</h3>
+                  <p>Make sure the sender profile and supporting files are in place.</p>
                 </div>
               </div>
               <div className={styles.list}>
                 <div className={styles.listItem}>
                   <strong>Sender</strong>
                   <span className={styles.muted}>
-                    {profileDraft.fullName || "Complete your profile name on the profile page."}
+                    {profileDraft.fullName || "Add your profile details before sending."}
                   </span>
                 </div>
                 <div className={styles.listItem}>
-                  <strong>Google mail</strong>
+                  <strong>Mail account</strong>
                   <span className={styles.muted}>
                     {gmailStatus.connected
                       ? gmailStatus.email ?? "Connected"
-                      : gmailStatus.failureReason ??
-                        "Sign out and sign back in with Google once to refresh the Gmail-send scope."}
+                      : gmailStatus.failureReason ?? "Sign in again with Google once."}
                   </span>
                 </div>
                 <div className={styles.listItem}>
-                  <strong>Research fields</strong>
+                  <strong>Fields</strong>
                   <span className={styles.muted}>
-                    {researchFieldOptions.length} configured for this user
+                    {researchFieldOptions.length} ready for this account
                   </span>
                 </div>
                 <div className={styles.listItem}>
-                  <strong>Attachments</strong>
+                  <strong>Files</strong>
                   <span className={styles.muted}>
                     {attachments.length} file{attachments.length === 1 ? "" : "s"} attached
                   </span>
@@ -586,8 +606,8 @@ export function HomeShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Rendered preview</h3>
-                  <p>This is the HTML body that will be sent from Gmail.</p>
+                  <h3>Preview</h3>
+                  <p>This is the HTML body that will be sent.</p>
                 </div>
               </div>
               <div
@@ -599,14 +619,14 @@ export function HomeShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Scheduled emails</h3>
-                  <p>Convex keeps these queued with per-email jobs.</p>
+                  <h3>Queued</h3>
+                  <p>Future mails that are already scheduled.</p>
                 </div>
               </div>
               <div className={styles.list}>
                 {scheduled.length === 0 ? (
                   <div className={styles.listItem}>
-                    <span className={styles.muted}>No scheduled emails yet.</span>
+                    <span className={styles.muted}>Nothing scheduled yet.</span>
                   </div>
                 ) : (
                   [...scheduled]
@@ -631,14 +651,14 @@ export function HomeShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Recent activity</h3>
-                  <p>Sent and failed deliveries stay visible for review.</p>
+                  <h3>History</h3>
+                  <p>Sent and failed mails stay here for reference.</p>
                 </div>
               </div>
               <div className={styles.list}>
                 {recent.length === 0 ? (
                   <div className={styles.listItem}>
-                    <span className={styles.muted}>No email history yet.</span>
+                    <span className={styles.muted}>No mail history yet.</span>
                   </div>
                 ) : (
                   recent.map((email) => (

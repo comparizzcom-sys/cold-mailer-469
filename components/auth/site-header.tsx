@@ -34,6 +34,12 @@ export function SiteHeader() {
               >
                 Profile
               </Link>
+              <Link
+                href="/help"
+                className={`topbarButton ghost${pathname === "/help" ? " active" : ""}`}
+              >
+                Help
+              </Link>
             </>
           ) : null}
           {isLoaded && !isSignedIn ? (

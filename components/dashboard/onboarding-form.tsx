@@ -57,8 +57,8 @@ export function OnboardingForm() {
       <main className={styles.page}>
         <section className={styles.panel}>
           <div className={styles.header}>
-            <h1>Loading onboarding</h1>
-            <p>Waiting for your Convex session to be ready.</p>
+            <h1>Loading</h1>
+            <p>Opening your setup.</p>
           </div>
         </section>
       </main>
@@ -70,11 +70,8 @@ export function OnboardingForm() {
       <main className={styles.page}>
         <section className={styles.panel}>
           <div className={styles.header}>
-            <h1>Convex authentication not ready</h1>
-            <p>
-              Clerk sign-in succeeded, but Convex does not yet recognize the
-              session. Check your Clerk Convex integration and JWT issuer setup.
-            </p>
+            <h1>Session not ready</h1>
+            <p>Refresh the page or sign in again.</p>
           </div>
         </section>
       </main>
@@ -112,8 +109,8 @@ export function OnboardingForm() {
         <div className={styles.header}>
           <h1>Set up your research profile</h1>
           <p>
-            Add your name and research fields first. These fields will populate the
-            compose dropdown for this user and can be edited later.
+            Add your name and research fields first. You can edit all of this later
+            from the profile page.
           </p>
         </div>
 
@@ -187,7 +184,7 @@ export function OnboardingForm() {
 
         <div className={styles.buttonRow}>
           <button className={styles.button} type="button" onClick={handleSubmit}>
-            {isSaving ? "Saving..." : "Continue to mailing"}
+            {isSaving ? "Saving..." : "Continue"}
           </button>
         </div>
       </section>

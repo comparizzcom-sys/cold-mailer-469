@@ -20,7 +20,7 @@ const mono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Cold Mailer 469",
-  description: "Schedule and send personalized research outreach with Gmail, Convex, and OpenAI.",
+  description: "Draft, edit, and schedule personalized research outreach emails.",
 };
 
 export default async function RootLayout({

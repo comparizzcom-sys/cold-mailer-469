@@ -85,8 +85,8 @@ export function ProfileShell() {
       type: "success",
       text:
         gmailMessage === "managed-by-clerk"
-          ? "Google mail access is now managed by your Clerk Google sign-in. If you recently added the Gmail scope, sign out and sign back in once."
-          : `Google mail note: ${gmailMessage}`,
+          ? "Mail access is handled by your Google sign-in. If you added the send scope later, sign out and sign back in once."
+          : `Mail note: ${gmailMessage}`,
     });
   }, [searchParams]);
 
@@ -103,7 +103,7 @@ export function ProfileShell() {
       } catch (error) {
         setMessage({
           type: "error",
-          text: error instanceof Error ? error.message : "Failed to save profile.",
+          text: error instanceof Error ? error.message : "Could not save profile.",
         });
       }
     });
@@ -111,7 +111,7 @@ export function ProfileShell() {
 
   async function handleUploadAttachment() {
     if (!attachmentFile) {
-      setMessage({ type: "error", text: "Choose a file before uploading." });
+      setMessage({ type: "error", text: "Choose a file first." });
       return;
     }
 
@@ -140,7 +140,7 @@ export function ProfileShell() {
       } catch (error) {
         setMessage({
           type: "error",
-          text: error instanceof Error ? error.message : "Failed to upload file.",
+          text: error instanceof Error ? error.message : "Could not upload file.",
         });
       }
     });
@@ -156,7 +156,7 @@ export function ProfileShell() {
       } catch (error) {
         setMessage({
           type: "error",
-          text: error instanceof Error ? error.message : "Failed to delete file.",
+          text: error instanceof Error ? error.message : "Could not delete file.",
         });
       }
     });
@@ -169,8 +169,8 @@ export function ProfileShell() {
           <section className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h2>Loading profile</h2>
-                <p>Waiting for your Convex session to be ready.</p>
+                <h2>Loading</h2>
+                <p>Opening your profile.</p>
               </div>
             </div>
           </section>
@@ -186,8 +186,8 @@ export function ProfileShell() {
           <section className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h2>Convex authentication not ready</h2>
-                <p>Sign in again once the Clerk Convex integration is active.</p>
+                <h2>Session not ready</h2>
+                <p>Refresh the page or sign in again.</p>
               </div>
             </div>
           </section>
@@ -202,34 +202,34 @@ export function ProfileShell() {
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>Profile</span>
-            <h1 className={styles.title}>Your Profile and Documents</h1>
+            <h1 className={styles.title}>Research profile, files, and prompts.</h1>
             <p className={styles.lead}>
-              Manage the research fields, signature, examples, and documents that
-              power every generated mail.
+              This page controls the information the app uses when it writes and
+              sends your outreach mails.
             </p>
+            <div className={styles.heroActions}>
+              <Link href="/" className={styles.button}>
+                Mailing
+              </Link>
+              <Link href="/help" className={styles.buttonGhost}>
+                Help
+              </Link>
+            </div>
           </div>
           <div className={styles.heroPanel}>
             <div>
-              <span>Google mail</span>
+              <span>Mail</span>
               <strong>
                 {gmailStatusLoading
-                  ? "Checking..."
+                  ? "Checking"
                   : gmailStatus.connected
                     ? "Ready"
-                    : "Needs Google sign-in"}
+                    : "Reconnect"}
               </strong>
             </div>
             <div>
               <span>Sender</span>
               <strong>{gmailStatus.email ?? "Unavailable"}</strong>
-            </div>
-            <div>
-              <span>Workspace</span>
-              <strong>
-                <Link href="/" className={styles.buttonGhost}>
-                  Back to mailing
-                </Link>
-              </strong>
             </div>
           </div>
         </section>
@@ -239,9 +239,7 @@ export function ProfileShell() {
             {message ? (
               <div
                 className={`${styles.message} ${
-                  message.type === "success"
-                    ? styles.messageSuccess
-                    : styles.messageError
+                  message.type === "success" ? styles.messageSuccess : styles.messageError
                 }`}
               >
                 {message.text}
@@ -251,18 +249,15 @@ export function ProfileShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Mail permissions</h3>
-                  <p>
-                    Gmail sending now comes from your Clerk Google sign-in token.
-                    No separate connect step is required.
-                  </p>
+                  <h3>Mail access</h3>
+                  <p>Your Google sign-in is also what the app uses to send mail.</p>
                 </div>
                 <span
                   className={`${styles.statusPill} ${
                     gmailStatus.connected ? styles.statusConnected : styles.statusFailed
                   }`}
                 >
-                  {gmailStatus.connected ? "Connected" : "Missing scope"}
+                  {gmailStatus.connected ? "Ready" : "Missing access"}
                 </span>
               </div>
               <div className={styles.list}>
@@ -277,11 +272,10 @@ export function ProfileShell() {
                   </div>
                 ) : null}
                 <div className={styles.listItem}>
-                  <strong>If permissions were added later</strong>
+                  <strong>Tip</strong>
                   <span className={styles.muted}>
-                    Sign out, sign back in with Google, and approve the Gmail-send
-                    consent screen once so Clerk refreshes the provider token with the
-                    new scope.
+                    If you added mail permission after your first sign-in, sign out
+                    and sign back in with Google once.
                   </span>
                 </div>
               </div>
@@ -290,8 +284,8 @@ export function ProfileShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Profile settings</h3>
-                  <p>Everything used in generated drafts and signatures lives here.</p>
+                  <h3>Core profile</h3>
+                  <p>Your signature, subject line, and introduction live here.</p>
                 </div>
               </div>
               <div className={styles.formGrid}>
@@ -322,7 +316,7 @@ export function ProfileShell() {
                   />
                 </div>
                 <div className={`${styles.field} ${styles.fieldWide}`}>
-                  <label>Degree / headline</label>
+                  <label>Degree or headline</label>
                   <input
                     className={styles.input}
                     value={profileDraft.degree}
@@ -406,7 +400,7 @@ export function ProfileShell() {
                   onClick={handleSaveProfile}
                   disabled={isSavingProfile}
                 >
-                  {isSavingProfile ? "Saving..." : "Save profile"}
+                  {isSavingProfile ? "Saving..." : "Save"}
                 </button>
               </div>
             </section>
@@ -415,7 +409,7 @@ export function ProfileShell() {
               <div className={styles.cardHeader}>
                 <div>
                   <h3>Research fields</h3>
-                  <p>These power the research field dropdown on the mailing page.</p>
+                  <p>These become the options in the compose screen.</p>
                 </div>
               </div>
               <ResearchFieldsEditor
@@ -435,13 +429,13 @@ export function ProfileShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Additional profile context</h3>
-                  <p>These shape the prompt and final deterministic email body.</p>
+                  <h3>Prompt context</h3>
+                  <p>These notes influence the generated draft and the final body.</p>
                 </div>
               </div>
               <div className={styles.formGrid}>
                 <div className={`${styles.field} ${styles.fieldWide}`}>
-                  <label>Honors and publication blurbs (one per line)</label>
+                  <label>Honors and publication blurbs</label>
                   <textarea
                     className={styles.textarea}
                     value={profileDraft.honors.join("\n")}
@@ -470,7 +464,7 @@ export function ProfileShell() {
                   />
                 </div>
                 <div className={`${styles.field} ${styles.fieldWide}`}>
-                  <label>Good email examples or style notes</label>
+                  <label>Good examples or style notes</label>
                   <textarea
                     className={styles.textarea}
                     value={profileDraft.goodEmailExamples}
@@ -488,8 +482,8 @@ export function ProfileShell() {
             <section className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Attachments</h3>
-                  <p>Upload, replace, or delete your CV, transcript, and extras.</p>
+                  <h3>Files</h3>
+                  <p>Upload, replace, or remove the documents sent with each mail.</p>
                 </div>
               </div>
               <div className={styles.uploadRow}>
@@ -505,7 +499,7 @@ export function ProfileShell() {
                   <option value="other">Other</option>
                 </select>
                 <input
-                  className={styles.input}
+                  className={styles.fileInput}
                   type="file"
                   onChange={(event) => setAttachmentFile(event.target.files?.[0] ?? null)}
                 />
@@ -520,7 +514,7 @@ export function ProfileShell() {
               <div className={styles.list}>
                 {attachments.length === 0 ? (
                   <div className={styles.listItem}>
-                    <span className={styles.muted}>No attachments uploaded yet.</span>
+                    <span className={styles.muted}>No files uploaded yet.</span>
                   </div>
                 ) : (
                   attachments.map((attachment) => (
@@ -539,7 +533,7 @@ export function ProfileShell() {
                         </button>
                       </div>
                       <span className={styles.muted}>
-                        {attachment.kind.toUpperCase()} . {(attachment.size / 1024).toFixed(1)} KB
+                        {attachment.kind.toUpperCase()} · {(attachment.size / 1024).toFixed(1)} KB
                       </span>
                     </div>
                   ))
