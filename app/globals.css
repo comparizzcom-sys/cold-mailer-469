@@ -62,6 +62,31 @@ a:focus-visible {
   padding: 2rem;
 }
 
+.authStack {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.authNotice {
+  border: 2px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--accent-soft);
+  padding: 0.8rem 0.95rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: var(--shadow);
+}
+
+.authNotice a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .errorCard {
   width: min(640px, 100%);
   padding: 2rem;
