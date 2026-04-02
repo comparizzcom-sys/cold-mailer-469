@@ -21,6 +21,11 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Cold Mailer 469",
   description: "Draft, edit, and schedule personalized research outreach emails.",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default async function RootLayout({
