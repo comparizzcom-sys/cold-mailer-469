@@ -146,17 +146,6 @@
   padding: 0.8rem 0.9rem;
 }
 
-.input::file-selector-button,
-.fileInput::file-selector-button {
-  margin-right: 0.8rem;
-  border: 2px solid var(--border-strong);
-  background: #f5f5f5;
-  color: #0a0a0a;
-  padding: 0.45rem 0.7rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .textarea {
   min-height: 110px;
   resize: vertical;
@@ -277,9 +266,49 @@
 
 .uploadRow {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr) auto;
+  grid-template-columns: 170px auto minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: center;
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.filePicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 2px solid var(--border-strong);
+  padding: 0.72rem 0.95rem;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.fileName {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--border);
+  background: #0c0c0c;
+  color: var(--muted);
+  padding: 0.72rem 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inline {

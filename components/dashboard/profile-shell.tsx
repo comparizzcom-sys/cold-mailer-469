@@ -499,10 +499,17 @@ export function ProfileShell() {
                   <option value="other">Other</option>
                 </select>
                 <input
-                  className={styles.fileInput}
+                  id="profile-upload"
+                  className={styles.hiddenInput}
                   type="file"
                   onChange={(event) => setAttachmentFile(event.target.files?.[0] ?? null)}
                 />
+                <label htmlFor="profile-upload" className={styles.filePicker}>
+                  Pick file
+                </label>
+                <span className={styles.fileName}>
+                  {attachmentFile?.name ?? "No file selected"}
+                </span>
                 <button
                   className={styles.button}
                   onClick={handleUploadAttachment}
