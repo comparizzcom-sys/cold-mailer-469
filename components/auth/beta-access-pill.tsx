@@ -19,7 +19,9 @@ export function BetaAccessPill() {
 
   return (
     <div className="authNotice">
-      Cold Mailer 469 is still in beta. Contact me to request access.
+      <span className="authNoticeText">
+        Cold Mailer 469 is still in beta. Contact me to request access.
+      </span>
       <details className="authNoticeDetails">
         <summary>Contact me</summary>
         <div className="authNoticeMenu">

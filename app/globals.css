@@ -69,34 +69,46 @@ a:focus-visible {
 }
 
 .authNotice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   border: 2px solid var(--border-strong);
   background: var(--panel);
   color: var(--accent-soft);
-  padding: 0.8rem 0.95rem;
-  font-size: 0.86rem;
+  padding: 0.72rem 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  line-height: 1.45;
+  line-height: 1.35;
   box-shadow: var(--shadow);
 }
 
+.authNoticeText {
+  flex: 1;
+  min-width: 0;
+}
+
 .authNoticeDetails {
-  display: inline-block;
-  margin-left: 0.45rem;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .authNoticeDetails summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  padding: 0.32rem 0.68rem;
+  min-height: 28px;
+  padding: 0.18rem 0.55rem;
   border: 2px solid var(--border-strong);
-  background: #f5f5f5;
-  color: #0a0a0a;
+  background: transparent;
+  color: var(--text);
   cursor: pointer;
   list-style: none;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .authNoticeDetails summary::-webkit-details-marker {
@@ -104,10 +116,18 @@ a:focus-visible {
 }
 
 .authNoticeMenu {
-  margin-top: 0.55rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.45rem);
   display: flex;
+  flex-direction: column;
   gap: 0.55rem;
-  flex-wrap: wrap;
+  min-width: 152px;
+  padding: 0.55rem;
+  border: 2px solid var(--border-strong);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  z-index: 5;
 }
 
 .authNoticeAction {
@@ -117,9 +137,10 @@ a:focus-visible {
   min-height: 32px;
   padding: 0.32rem 0.68rem;
   border: 2px solid var(--border-strong);
-  background: var(--panel-strong);
+  background: #0f0f0f;
   color: var(--text);
   cursor: pointer;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   text-decoration: none;
@@ -195,10 +216,19 @@ a:focus-visible {
 }
 
 @media (max-width: 560px) {
+  .authNotice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .authNoticeDetails {
-    display: block;
-    margin-left: 0;
-    margin-top: 0.55rem;
+    width: 100%;
+  }
+
+  .authNoticeMenu {
+    left: 0;
+    right: auto;
+    min-width: 100%;
   }
 
   .topbarInner {
